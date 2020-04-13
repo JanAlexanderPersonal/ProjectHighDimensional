@@ -1,0 +1,206 @@
+---
+title: | 
+        | Project
+        | Transplant kidney rejection
+        | High Dimensional Data Analysis
+author:
+  - Jan Alexander^[jan.alexander@ugent.be]
+  - Annabel Vaessens^[annabel.vaessens@vub.be]
+  - Steven Wallaert^[steven.wallaert@ugent.be]
+date: "8/4/2020"
+output:
+  pdf_document: 
+    number_sections: yes
+    toc: no
+  html_document:
+    df_print: paged
+    toc: yes
+    toc_depth: '3'
+  word_document:
+    toc: yes
+    toc_depth: '3'
+header-includes: \usepackage{amsmath}
+---
+
+```{r setup, include=FALSE}
+
+rm(list = ls())
+
+library(ggplot2)
+library(latex2exp)
+library(tidyverse)
+
+library(PMA)
+library(pls)
+
+library(glmnet)
+library(ROCR)
+
+knitr::opts_chunk$set(echo = TRUE, fig.width=6, fig.height=4)
+
+set.seed(321)
+```
+
+```{r load data, eval=TRUE, include=TRUE}
+load('RejectionStatus.rda')
+load('X_GSE21374.rda')
+dim(RejectionStatus)
+dim(X_GSE21374)
+
+GeneExpression <- scale(t(X_GSE21374))
+
+GeneExpression <-
+  GeneExpression[order(as.numeric(row.names(GeneExpression))), ]
+RejectionStatus <-
+  RejectionStatus[order(as.numeric(RejectionStatus$Patient_ID)), ]
+
+all.equal(row.names(GeneExpression), as.character(RejectionStatus$Patient_ID))
+```
+
+# Introduction
+
+The data is loaded as presented in the assignment.
+
+Three research questions are defined:
+
+* How do the 54675 genes vary in terms of their gene expression levels? Is the variability associated with kidney rejection? (only to be answered in a data explorative manner).
+* Which genes are differentially expressed between the two kidney rejection groups? You must control the False Discovery Rate at 10%.
+* Can the kidney rejection be predicted from the gene expressions? What genes are most important in predicting the kidney transplant rejection? How well does the prediction model perform in terms of predicting rejection status?
+
+# Data exploration
+
+In the complete dataset, `r round(mean(RejectionStatus$Reject_Status) * 100) ` % of the transplanted kidnesy were rejected.
+
+```{r}
+Gen_spc <- PMA::SPC(GeneExpression, K = 2, sumabsv = 2)
+Uk <- Gen_spc$u ; Dk <- diag(Gen_spc$d)
+Zk <- data.frame(X = Uk %*% Dk, Patient_ID = row.names(GeneExpression))
+Zk <- merge(Zk, RejectionStatus, by = 'Patient_ID') %>% 
+  mutate(Reject_Status = as.factor(Reject_Status))
+ggplot(data = Zk, aes(x = X.1, y = X.2, col = Reject_Status)) + 
+  geom_point()
+
+rm(Zk, Dk, Uk, X_GSE21374, Gen_spc)
+```
+
+Unfortunately, naive sparce principle component analysis does not seem to work well.
+
+Partial least squares:
+
+```{r}
+GeneExpression_comb <-
+  list(genes = as.matrix(GeneExpression), Rejection = as.matrix(RejectionStatus$Reject_Status))
+pls_model <- pls::plsr(genes ~ Rejection, data = GeneExpression_comb, validation = "CV")
+```
+
+
+# Differentiating genes between kidney acceptance and rejection
+
+# Prediction of kidney transplant rejection
+
+```{r}
+ind_train <-
+  sample(seq_len(nrow(RejectionStatus)), size = floor(nrow(RejectionStatus) * 0.80))
+
+Y_train <- as.matrix(RejectionStatus[ind_train, 'Reject_Status'])
+X_train <- as.matrix(GeneExpression[ind_train,])
+Y_test <- as.matrix(RejectionStatus[-ind_train, 'Reject_Status'])
+X_test <- as.matrix(GeneExpression[-ind_train,])
+```
+
+
+## Lasso regression
+
+```{r}
+m.cv <-
+  cv.glmnet(
+    x = X_train,
+    y = Y_train,
+    alpha = 1,
+    family = 'binomial',
+    type.measure = "auc"
+  )
+plot(m.cv, xlab = TeX(" $ log(\\gamma ) $ "))
+```
+
+In the figure above, one can see that for $\gamma$ equal to   `r m.cv$lambda.min`  , the area under the curve ( _AUC_ ) is maximal for the train dataset based on a 10-fold cross-validation over the train dataset. 
+
+The ROC curve, estimated with the cross-validation dataset, is shown below:
+
+```{r}
+m <- glmnet(
+  x = X_train,
+  y = Y_train,
+  alpha = 1,
+  family = 'binomial',
+  lambda = m.cv$lambda.min
+)
+pred_m <-
+  prediction(predict(
+    m,
+    newx = X_test,
+    type = 'response'
+  ),
+  Y_test)
+perf <- performance(pred_m, 'sens', 'fpr')
+plot(perf)
+```
+
+This model uses 
+`r length(unique(summary(coef(m))[-1,1])) ` 
+of the features. 
+This is a considerable dimensional reduction.
+This is illustrated below. This figure shows the loadings of the 
+`r length(unique(summary(coef(m))[-1,1])) ` 
+selected values.
+
+```{r, fig.width=4, fig.height=3.5, eval=TRUE, echo=FALSE}
+plot(
+  summary(coef(m))[-1, 1],
+  summary(coef(m))[-1, 3],
+  cex = 1,
+  pch = 3,
+  xlab = 'feature' ,
+  ylab = TeX(" $ \\hat{\\beta} $ ")
+)
+```
+
+
+## Ridge regression
+
+```{r}
+m.cv <-
+  cv.glmnet(
+    x = X_train,
+    y = Y_train,
+    alpha = 0,
+    family = 'binomial',
+    type.measure = "auc"
+  )
+plot(m.cv, xlab = TeX(" $ log(\\gamma ) $ "))
+```
+
+In the figure above, one can see that for $\gamma$ equal to   `r m.cv$lambda.min`  , the area under the curve ( _AUC_ ) is maximal for the train dataset based on a 10-fold cross-validation over the train dataset. 
+
+The ROC curve, estimated with the cross-validation dataset, is shown below:
+
+```{r}
+m <- glmnet(
+  x = X_train,
+  y = Y_train,
+  alpha = 0,
+  family = 'binomial',
+  lambda = m.cv$lambda.min
+)
+pred_m <-
+  prediction(predict(
+    m,
+    newx = X_test,
+    type = 'response'
+  ),
+  Y_test)
+perf <- performance(pred_m, 'sens', 'fpr')
+plot(perf)
+```
+
+
