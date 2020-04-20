@@ -32,7 +32,7 @@ library(tidyverse)
 
 library(PMA)
 library(pls)
-
+library(MASS)
 library(glmnet)
 library(ROCR)
 
@@ -126,6 +126,134 @@ barplot(cumsum(GeneExpression.svd$d^2/(nrow(GeneExpression)-1)/totvar), names.ar
 ```
 
 In the scree plots above it can be seen that the two first dimensions account for only 26% of the total variance in the dataset.
+
+## LDA
+
+In an exploratory fashion, we look at the results of an LDA, performed with the first 300 gene expressions. We chose to do this because LDA performed using all gene expressions did not work.
+
+```{r}
+GeneExpression.lda <- lda(GeneExpression[,1:300], grouping = RejectionStatus$Reject_Status)
+
+V <- GeneExpression.lda$scaling
+Z <- GeneExpression[,1:300] %*% V
+
+plot(Z, col =  RejectionStatus$Reject_Status+1, pch= 16, cex = 1.5)
+
+```
+
+We can see a clear distinction between the 2 rejection status groups.
+
+```{r}
+plot(V, cex = 0.8, cex.axis = 1.5, cex.lab = 1.5, xlab = "gene ID",
+     ylab = "loading")
+
+abline(h=0)
+abline(h=c(2,-2)*sd(V), col = 2)
+
+id <- which(abs(V) > 2*sd(V))
+```
+
+The most contributing gene expressions are:
+
+```{r}
+colnames(GeneExpression[,id])
+```
+
+We repeated this for 243 folds of 225 gene expressions because
+
+```{r}
+243 * 225 == dim(GeneExpression)[2]
+```
+
+```{r}
+id.all <- vector("numeric")
+
+for (i in 1:(dim(GeneExpression)[2]/225)){
+
+  start <- 1 + (i-1)*225
+  stop <- start + 224
+  gene.lda <- lda(GeneExpression[,start:stop], grouping = RejectionStatus$Reject_Status)
+
+  V <- gene.lda$scaling
+  Z <- gene[,start:stop] %*% V
+
+
+  id.all <- append(id.all, which(abs(V) > 3*sd(V)) - 1 + start) # -1 to start at 0
+
+}
+gene.lda <- lda(GeneExpression[,id.all], grouping = RejectionStatus$Reject_Status)
+
+V <- gene.lda$scaling
+Z <- GeneExpression[,id.all] %*% V
+plot(Z, col =  RejectionStatus$Reject_Status+1, pch= 16, cex = 1.5)
+
+```
+
+```{r}
+plot(V, cex = 0.8, cex.axis = 1.5, cex.lab = 1.5, xlab = "gene ID",
+     ylab = "loading")
+
+abline(h=0)
+abline(h=c(2,-2)*sd(V), col = 2)
+
+id <- which(abs(V) > 2*sd(V))
+
+colnames(GeneExpression[,id.all][,id])
+```
+
+
+Capping off at +- 3SD, this resulted in `r length(id.all)` gene expressions.
+
+Using all these, and only these gene expressions, an LDA delivers `r dim(GeneExpression[,id.all][,id])[2]` genes.
+
+Why at 3SD? PAS OP UITVOEREN DUURT LANG, in plaats daarvan, zie plot in de map
+
+```{r}
+id.all <- vector("numeric")
+bss_wss <- vector("numeric")
+p <- vector("numeric")
+
+for(j in 2:8){
+  id.all <- vector("numeric")
+for (i in 1:(dim(gene)[2]/225)){
+
+  start <- 1 + (i-1)*225
+  stop <- start + 224
+  gene.lda <- lda(gene[,start:stop], grouping = RejectionStatus$Reject_Status)
+
+  V <- gene.lda$scaling
+  Z <- gene[,start:stop] %*% V
+
+
+  id.all <- append(id.all, which(abs(V) > j*sd(V)) - 1 + start) # -1 to start at 0
+
+}
+
+gene.lda <- lda(gene[,id.all], grouping = RejectionStatus$Reject_Status)
+
+V <- gene.lda$scaling
+Z <- gene[,id.all] %*% V
+
+a <- sum((Z[RejectionStatus$Reject_Status==1] - mean(Z[RejectionStatus$Reject_Status==1]))**2)
+b <- sum((Z[RejectionStatus$Reject_Status==0] - mean(Z[RejectionStatus$Reject_Status==0]))**2)
+
+within <- a+b
+
+
+a <- sum((mean(Z[RejectionStatus$Reject_Status==0])-mean(Z))**2)
+b <- sum((mean(Z[RejectionStatus$Reject_Status==1])-mean(Z))**2)
+between <- a*sum(RejectionStatus$Reject_Status==0)+b*sum(RejectionStatus$Reject_Status==1)
+
+bss_wss[j] <- between/within
+p[j] <- length(id.all)
+}
+
+plot(1:7, bss_wss, "b")
+```
+
+zie plot in de map
+
+
 
 # Differentiating genes between kidney acceptance and rejection
 
