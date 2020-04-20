@@ -71,6 +71,8 @@ Three research questions are defined:
 
 In the complete dataset, `r round(mean(RejectionStatus$Reject_Status) * 100) ` % of the transplanted kidnesy were rejected.
 
+## Sparse principle components analysis
+
 ```{r}
 Gen_spc <- PMA::SPC(GeneExpression, K = 2, sumabsv = 2)
 Uk <- Gen_spc$u ; Dk <- diag(Gen_spc$d)
@@ -85,7 +87,7 @@ rm(Zk, Dk, Uk, X_GSE21374, Gen_spc)
 
 Unfortunately, naive sparce principle component analysis does not seem to work well.
 
-Partial least squares:
+## Partial least squares:
 
 ```{r}
 GeneExpression_comb <-
@@ -93,6 +95,37 @@ GeneExpression_comb <-
 pls_model <- pls::plsr(genes ~ Rejection, data = GeneExpression_comb, validation = "CV")
 ```
 
+## Multi-dimensional scaling:
+
+```{r}
+GeneExpression.svd <- svd(GeneExpression)
+
+k <-2
+Uk <- GeneExpression.svd$u[,1:k]; Dk <- diag(GeneExpression.svd$d[1:k]) 
+Vk <-GeneExpression.svd$v[,1:k]
+Xk <- Uk %*% Dk %*% t(Vk)
+Zk <- Uk %*% Dk
+
+rownames(Zk) <- RejectionStatus[[2]]
+rownames(Vk) <- colnames(GeneExpression)
+ColnamesNull <- colnames(GeneExpression)
+ColnamesNull[]<- "" 
+
+biplot(Uk, Vk, xlabs=RejectionStatus[[2]], var.axes=FALSE, ylabs=ColnamesNull, cex=0.75)
+```
+
+In the biplot of the two first dimensions of the svd, no distinction can be made between rejected and accepted kidneys.
+
+```{r}
+totvar <- sum(GeneExpression.svd$d^2)/(nrow(GeneExpression)-1)
+plot(GeneExpression.svd$d^2/(nrow(GeneExpression)-1), type="b", 
+     ylab="eigenvalue",xlab="j",cex=2, cex.axis=1.5, cex.lab=1.5)
+barplot(GeneExpression.svd$d^2/(nrow(GeneExpression)-1)/totvar, 
+        names.arg=1:nrow(GeneExpression), xlab='j', cex.lab=2)
+barplot(cumsum(GeneExpression.svd$d^2/(nrow(GeneExpression)-1)/totvar), names.arg=1:nrow(GeneExpression), ylab='cumulative prop. of total variance')
+```
+
+In the scree plots above it can be seen that the two first dimensions account for only 26% of the total variance in the dataset.
 
 # Differentiating genes between kidney acceptance and rejection
 
