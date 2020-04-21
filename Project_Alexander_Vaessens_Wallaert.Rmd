@@ -175,7 +175,7 @@ for (i in 1:(dim(GeneExpression)[2]/225)){
   gene.lda <- lda(GeneExpression[,start:stop], grouping = RejectionStatus$Reject_Status)
 
   V <- gene.lda$scaling
-  Z <- gene[,start:stop] %*% V
+  Z <- GeneExpression[,start:stop] %*% V
 
 
   id.all <- append(id.all, which(abs(V) > 3*sd(V)) - 1 + start) # -1 to start at 0
@@ -208,7 +208,7 @@ Using all these, and only these gene expressions, an LDA delivers `r dim(GeneExp
 
 Why at 3SD? PAS OP UITVOEREN DUURT LANG, in plaats daarvan, zie plot in de map
 
-```{r}
+```{r, eval=FALSE}
 id.all <- vector("numeric")
 bss_wss <- vector("numeric")
 p <- vector("numeric")
@@ -251,7 +251,11 @@ p[j] <- length(id.all)
 plot(1:7, bss_wss, "b")
 ```
 
-zie plot in de map
+
+```{r}
+knitr::include_graphics("hoeveel_sd.png")
+```
+
 
 
 
