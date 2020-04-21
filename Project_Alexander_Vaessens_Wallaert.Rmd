@@ -29,7 +29,7 @@ rm(list = ls())
 library(ggplot2)
 library(latex2exp)
 library(tidyverse)
-
+library(boot)
 library(PMA)
 library(pls)
 library(MASS)
@@ -369,3 +369,58 @@ plot(perf)
 ```
 
 
+## Principal component regression
+
+```{r PCR CV}
+# cost function for CV
+MISERR <- function(obs, pred, cutoff = 0.5){
+  ypred <- as.numeric(pred > cutoff)
+  tab <- table(obs, ypred)
+  miserr <- 1 - sum(diag(tab))/sum(tab)
+  return(miserr)
+}
+
+max.n.comps <- 50 #random nr
+
+cv.glm.pcr <- rep(NA, max.n.comps)
+
+X_train.svd <- svd(X_train)
+
+U <- X_train.svd$u
+D <- diag(X_train.svd$d)
+Z_train <- U%*%D
+
+for(i in 1:max.n.comps){
+  fitdata <- data.frame(Y_train, Z_train[,1:i])
+  
+  mod <- glm(Y_train ~ ., data = fitdata, family = "binomial")
+  
+  cv.glm.pcr[i] <- cv.glm(fitdata, mod, cost = MISERR, K = 10)$delta[1]
+}
+
+npc.min <- which.min(cv.glm.pcr)
+
+plot(1:max.n.comps, cv.glm.pcr, type = "l")
+abline(v=npc.min, col =2)
+
+```
+
+
+```{r PCR model}
+V <- X_train.svd$v
+Z_test <- X_test %*% V
+
+fitdata <- data.frame(Y_train, Z_train[,1:npc.min])
+
+mod <- glm(Y_train ~ ., data = fitdata)
+
+preddata <- data.frame(Z_test[,1:npc.min])
+
+pred_mod <- prediction(predict(mod, newdata = preddata), Y_test)
+
+perf_mod <- performance(pred_mod, "sens", "fpr")
+
+plot(perf_mod)
+```
+
+AUC is `r performance(pred_mod, "auc")@y.values`.
