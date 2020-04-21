@@ -100,7 +100,7 @@ pls_model <- pls::plsr(genes ~ Rejection, data = GeneExpression_comb, validation
 ```{r}
 GeneExpression.svd <- svd(GeneExpression)
 
-k <-2
+k <-5
 Uk <- GeneExpression.svd$u[,1:k]; Dk <- diag(GeneExpression.svd$d[1:k]) 
 Vk <-GeneExpression.svd$v[,1:k]
 Xk <- Uk %*% Dk %*% t(Vk)
@@ -111,10 +111,23 @@ rownames(Vk) <- colnames(GeneExpression)
 ColnamesNull <- colnames(GeneExpression)
 ColnamesNull[]<- "" 
 
-biplot(Uk, Vk, xlabs=RejectionStatus[[2]], var.axes=FALSE, ylabs=ColnamesNull, cex=0.75)
+biplot(Uk[,c(1,2)], Vk[,c(1,2)], xlabs=RejectionStatus[[2]], var.axes=FALSE, ylabs=ColnamesNull, cex=0.75)
 ```
 
-In the biplot of the two first dimensions of the svd, no distinction can be made between rejected and accepted kidneys.
+In the biplot of the two first dimensions of the svd, no distinction can be made between rejected and accepted kidneys. The variable arrows are left out of the biplot to have a clear plot.
+Biplots of higher dimensions (k=5) are shown below:
+
+```{r}
+biplot(Uk[,c(2,3)], Vk[,c(2,3)], xlabs=RejectionStatus[[2]], 
+       var.axes=FALSE, ylabs=ColnamesNull, cex=0.75)
+biplot(Uk[,c(3,4)], Vk[,c(3,4)], xlabs=RejectionStatus[[2]], 
+       var.axes=FALSE, ylabs=ColnamesNull, cex=0.75)
+biplot(Uk[,c(4,5)], Vk[,c(4,5)], xlabs=RejectionStatus[[2]], 
+       var.axes=FALSE, ylabs=ColnamesNull, cex=0.75)
+biplot(Uk[,c(1,3)], Vk[,c(1,3)], xlabs=RejectionStatus[[2]], 
+       var.axes=FALSE, ylabs=ColnamesNull, cex=0.75)
+```
+No distinction between rejected and eccepted kidneys can be made on biplots of higher dimensions either.
 
 ```{r}
 totvar <- sum(GeneExpression.svd$d^2)/(nrow(GeneExpression)-1)
@@ -125,7 +138,7 @@ barplot(GeneExpression.svd$d^2/(nrow(GeneExpression)-1)/totvar,
 barplot(cumsum(GeneExpression.svd$d^2/(nrow(GeneExpression)-1)/totvar), names.arg=1:nrow(GeneExpression), ylab='cumulative prop. of total variance')
 ```
 
-In the scree plots above it can be seen that the two first dimensions account for only 26% of the total variance in the dataset.
+In the scree plots above it can be seen that the two first dimensions account for only 26% of the total variance in the dataset, and the first five dimensions for about 36%.
 
 ## LDA
 
