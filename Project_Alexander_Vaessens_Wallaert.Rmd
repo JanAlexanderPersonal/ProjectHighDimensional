@@ -73,7 +73,7 @@ In the complete dataset, `r round(mean(RejectionStatus$Reject_Status) * 100) ` %
 
 ## Sparse principle components analysis
 
-```{r}
+```{r sparse pca}
 Gen_spc <- PMA::SPC(GeneExpression, K = 2, sumabsv = 2)
 Uk <- Gen_spc$u ; Dk <- diag(Gen_spc$d)
 Zk <- data.frame(X = Uk %*% Dk, Patient_ID = row.names(GeneExpression))
@@ -89,7 +89,7 @@ Unfortunately, naive sparce principle component analysis does not seem to work w
 
 ## Partial least squares:
 
-```{r}
+```{r pls}
 GeneExpression_comb <-
   list(genes = as.matrix(GeneExpression), Rejection = as.matrix(RejectionStatus$Reject_Status))
 pls_model <- pls::plsr(genes ~ Rejection, data = GeneExpression_comb, validation = "CV")
@@ -97,10 +97,10 @@ pls_model <- pls::plsr(genes ~ Rejection, data = GeneExpression_comb, validation
 
 ## Multi-dimensional scaling:
 
-```{r}
+```{r mds}
 GeneExpression.svd <- svd(GeneExpression)
 
-k <-5
+k <-2
 Uk <- GeneExpression.svd$u[,1:k]; Dk <- diag(GeneExpression.svd$d[1:k]) 
 Vk <-GeneExpression.svd$v[,1:k]
 Xk <- Uk %*% Dk %*% t(Vk)
@@ -111,25 +111,12 @@ rownames(Vk) <- colnames(GeneExpression)
 ColnamesNull <- colnames(GeneExpression)
 ColnamesNull[]<- "" 
 
-biplot(Uk[,c(1,2)], Vk[,c(1,2)], xlabs=RejectionStatus[[2]], var.axes=FALSE, ylabs=ColnamesNull, cex=0.75)
+biplot(Uk, Vk, xlabs=RejectionStatus[[2]], var.axes=FALSE, ylabs=ColnamesNull, cex=0.75)
 ```
 
-In the biplot of the two first dimensions of the svd, no distinction can be made between rejected and accepted kidneys. The variable arrows are left out of the biplot to have a clear plot.
-Biplots of higher dimensions (k=5) are shown below:
+In the biplot of the two first dimensions of the svd, no distinction can be made between rejected and accepted kidneys.
 
-```{r}
-biplot(Uk[,c(2,3)], Vk[,c(2,3)], xlabs=RejectionStatus[[2]], 
-       var.axes=FALSE, ylabs=ColnamesNull, cex=0.75)
-biplot(Uk[,c(3,4)], Vk[,c(3,4)], xlabs=RejectionStatus[[2]], 
-       var.axes=FALSE, ylabs=ColnamesNull, cex=0.75)
-biplot(Uk[,c(4,5)], Vk[,c(4,5)], xlabs=RejectionStatus[[2]], 
-       var.axes=FALSE, ylabs=ColnamesNull, cex=0.75)
-biplot(Uk[,c(1,3)], Vk[,c(1,3)], xlabs=RejectionStatus[[2]], 
-       var.axes=FALSE, ylabs=ColnamesNull, cex=0.75)
-```
-No distinction between rejected and eccepted kidneys can be made on biplots of higher dimensions either.
-
-```{r}
+```{r plots mds}
 totvar <- sum(GeneExpression.svd$d^2)/(nrow(GeneExpression)-1)
 plot(GeneExpression.svd$d^2/(nrow(GeneExpression)-1), type="b", 
      ylab="eigenvalue",xlab="j",cex=2, cex.axis=1.5, cex.lab=1.5)
@@ -138,13 +125,13 @@ barplot(GeneExpression.svd$d^2/(nrow(GeneExpression)-1)/totvar,
 barplot(cumsum(GeneExpression.svd$d^2/(nrow(GeneExpression)-1)/totvar), names.arg=1:nrow(GeneExpression), ylab='cumulative prop. of total variance')
 ```
 
-In the scree plots above it can be seen that the two first dimensions account for only 26% of the total variance in the dataset, and the first five dimensions for about 36%.
+In the scree plots above it can be seen that the two first dimensions account for only 26% of the total variance in the dataset.
 
 ## LDA
 
 In an exploratory fashion, we look at the results of an LDA, performed with the first 300 gene expressions. We chose to do this because LDA performed using all gene expressions did not work.
 
-```{r}
+```{r lda}
 GeneExpression.lda <- lda(GeneExpression[,1:300], grouping = RejectionStatus$Reject_Status)
 
 V <- GeneExpression.lda$scaling
@@ -156,7 +143,7 @@ plot(Z, col =  RejectionStatus$Reject_Status+1, pch= 16, cex = 1.5)
 
 We can see a clear distinction between the 2 rejection status groups.
 
-```{r}
+```{r plot lda}
 plot(V, cex = 0.8, cex.axis = 1.5, cex.lab = 1.5, xlab = "gene ID",
      ylab = "loading")
 
@@ -178,7 +165,7 @@ We repeated this for 243 folds of 225 gene expressions because
 243 * 225 == dim(GeneExpression)[2]
 ```
 
-```{r}
+```{r lda sequential on all}
 id.all <- vector("numeric")
 
 for (i in 1:(dim(GeneExpression)[2]/225)){
@@ -202,7 +189,7 @@ plot(Z, col =  RejectionStatus$Reject_Status+1, pch= 16, cex = 1.5)
 
 ```
 
-```{r}
+```{r lda on all other output}
 plot(V, cex = 0.8, cex.axis = 1.5, cex.lab = 1.5, xlab = "gene ID",
      ylab = "loading")
 
@@ -221,7 +208,7 @@ Using all these, and only these gene expressions, an LDA delivers `r dim(GeneExp
 
 Why at 3SD? PAS OP UITVOEREN DUURT LANG, in plaats daarvan, zie plot in de map
 
-```{r, eval=FALSE}
+```{r lda probeersel, eval=FALSE}
 id.all <- vector("numeric")
 bss_wss <- vector("numeric")
 p <- vector("numeric")
@@ -265,7 +252,7 @@ plot(1:7, bss_wss, "b")
 ```
 
 
-```{r}
+```{r plot sd}
 knitr::include_graphics("hoeveel_sd.png")
 ```
 
@@ -276,7 +263,7 @@ knitr::include_graphics("hoeveel_sd.png")
 
 # Prediction of kidney transplant rejection
 
-```{r}
+```{r train test split}
 ind_train <-
   sample(seq_len(nrow(RejectionStatus)), size = floor(nrow(RejectionStatus) * 0.80))
 
@@ -289,7 +276,7 @@ X_test <- as.matrix(GeneExpression[-ind_train,])
 
 ## Lasso regression
 
-```{r}
+```{r lasso}
 m.cv <-
   cv.glmnet(
     x = X_train,
@@ -305,7 +292,7 @@ In the figure above, one can see that for $\gamma$ equal to   `r m.cv$lambda.min
 
 The ROC curve, estimated with the cross-validation dataset, is shown below:
 
-```{r}
+```{r performance lasso}
 m <- glmnet(
   x = X_train,
   y = Y_train,
@@ -332,7 +319,7 @@ This is illustrated below. This figure shows the loadings of the
 `r length(unique(summary(coef(m))[-1,1])) ` 
 selected values.
 
-```{r, fig.width=4, fig.height=3.5, eval=TRUE, echo=FALSE}
+```{r summary lasso, fig.width=4, fig.height=3.5, eval=TRUE, echo=FALSE}
 plot(
   summary(coef(m))[-1, 1],
   summary(coef(m))[-1, 3],
@@ -346,7 +333,7 @@ plot(
 
 ## Ridge regression
 
-```{r}
+```{r ridge}
 m.cv <-
   cv.glmnet(
     x = X_train,
@@ -362,7 +349,7 @@ In the figure above, one can see that for $\gamma$ equal to   `r m.cv$lambda.min
 
 The ROC curve, estimated with the cross-validation dataset, is shown below:
 
-```{r}
+```{r performance ridge}
 m <- glmnet(
   x = X_train,
   y = Y_train,
