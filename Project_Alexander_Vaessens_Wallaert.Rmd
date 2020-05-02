@@ -35,6 +35,8 @@ library(pls)
 library(MASS)
 library(glmnet)
 library(ROCR)
+library(multtest)
+library(RDRToolbox)
 
 knitr::opts_chunk$set(echo = TRUE, fig.width=6, fig.height=4)
 
@@ -256,10 +258,42 @@ plot(1:7, bss_wss, "b")
 knitr::include_graphics("hoeveel_sd.png")
 ```
 
+## LLE (locally linear embedding)
 
+Locally linear embedding (Roweis and Saul, 2000) is a nonlinear dimension reduction method which finds a low-dimensional representation for each points' local neighbourhood by linearly approximating the data in each neighbourhood and returing these coordinates of lower dimension.
 
+(Value of k (number of neighbours) could be optimised)
+
+```{r}
+lle <- RDRToolbox::LLE(data=GeneExpression, dim=3, k=100)
+labels = c("first component", "second component", 'third component')
+plot <-RDRToolbox::plotDR(data=lle, labels=RejectionStatus[,2], axesLabels=labels)
+```
+But also with LLE, we cannot differentiate between the accepted and rejected kidneys.
+(more on LLE: https://www.stat.cmu.edu/~cshalizi/350/lectures/14/lecture-14.pdf)
 
 # Differentiating genes between kidney acceptance and rejection
+
+A two-sided two-sample Welch t-test is done to determine whether the two groups (rejected and accepted kidneys) can be differentiated based on the gene data, whether the mean  of the two groups is different.The Welch t-test is done because of unequal variances/difference in amount of samples between the two groups.
+
+(remark 1: do we first need to test whether the assumtion of normality is satisfied? 
+remark 2: also test whether the variances of the two groups is unequal? (there will be some variables for sure where variance is unequal, therefore safer to do the Welch t-test rather than the student t-test)
+remark 3: MTP takes a long time to run (1 hour)
+remark 4: see http://web.mit.edu/r/current/arch/i386_linux26/lib/R/library/multtest/html/MTP.html for MTP function
+remark 5: not sure about arguments 'fdr.method' yet
+remark6: I have a permission error on my pc (work pc) and don't have admin rights to solve this, so I cannot check the output :( )
+
+```{r}
+testMTP <- multtest::MTP(X=t(GeneExpression), Y = RejectionStatus[,2], 
+    na.rm = TRUE, test = "t.twosamp.unequalvar", robust = FALSE, 
+    standardize = TRUE , alternative = "two.sided", typeone='fdr', fdr.method = "conservative", 
+    alpha = 0.10)
+print(testMTP)
+summary(testMTP)
+#par(mfrow=c(2,2))
+plot(testMTP,top=9)
+
+```
 
 # Prediction of kidney transplant rejection
 
