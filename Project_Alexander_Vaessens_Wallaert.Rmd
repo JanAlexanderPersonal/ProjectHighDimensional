@@ -50,6 +50,9 @@ dim(RejectionStatus)
 dim(X_GSE21374)
 
 GeneExpression <- scale(t(X_GSE21374))
+# vraagje: zie cursus p 74, men geeft aan voor PCA dat
+# indien vars in zelfde eenheden zijn (in ons geval is dit zo), dan beter niet schalen.
+# Zouden we dan mss beter niet schalen voor PCA?
 
 GeneExpression <-
   GeneExpression[order(as.numeric(row.names(GeneExpression))), ]
