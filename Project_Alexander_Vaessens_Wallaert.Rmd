@@ -49,7 +49,7 @@ load('X_GSE21374.rda')
 dim(RejectionStatus)
 dim(X_GSE21374)
 
-GeneExpression <- scale(t(X_GSE21374))
+GeneExpression <- scale(t(X_GSE21374),scale = F)
 # vraagje: zie cursus p 74, men geeft aan voor PCA dat
 # indien vars in zelfde eenheden zijn (in ons geval is dit zo), dan beter niet schalen.
 # Zouden we dan mss beter niet schalen voor PCA?
@@ -105,7 +105,7 @@ pls_model <- pls::plsr(genes ~ Rejection, data = GeneExpression_comb, validation
 ```{r mds}
 GeneExpression.svd <- svd(GeneExpression)
 
-k <-2
+k <- 2
 Uk <- GeneExpression.svd$u[,1:k]; Dk <- diag(GeneExpression.svd$d[1:k]) 
 Vk <-GeneExpression.svd$v[,1:k]
 Xk <- Uk %*% Dk %*% t(Vk)
@@ -117,6 +117,9 @@ ColnamesNull <- colnames(GeneExpression)
 ColnamesNull[]<- "" 
 
 biplot(Uk, Vk, xlabs=RejectionStatus[[2]], var.axes=FALSE, ylabs=ColnamesNull, cex=0.75)
+
+# eventueel
+plot(Zk[,1], Zk[,2], col=RejectionStatus$Reject_Status+1,pch=19)
 ```
 
 In the biplot of the two first dimensions of the svd, no distinction can be made between rejected and accepted kidneys.
