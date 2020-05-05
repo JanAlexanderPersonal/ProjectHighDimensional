@@ -37,6 +37,8 @@ library(glmnet)
 library(ROCR)
 library(multtest)
 library(RDRToolbox)
+library(diffusionMap)
+library(car)
 
 knitr::opts_chunk$set(echo = TRUE, fig.width=6, fig.height=4)
 
@@ -49,7 +51,9 @@ load('X_GSE21374.rda')
 dim(RejectionStatus)
 dim(X_GSE21374)
 
-GeneExpression <- scale(t(X_GSE21374),scale = F)
+GeneExpression <- t(X_GSE21374)
+GeneExpression_C <- scale(t(X_GSE21374),scale = F)
+GeneExpression_S <- scale(t(X_GSE21374),scale = T)
 # vraagje: zie cursus p 74, men geeft aan voor PCA dat
 # indien vars in zelfde eenheden zijn (in ons geval is dit zo), dan beter niet schalen.
 # Zouden we dan mss beter niet schalen voor PCA?
@@ -64,7 +68,7 @@ all.equal(row.names(GeneExpression), as.character(RejectionStatus$Patient_ID))
 
 # Introduction
 
-The data is loaded as presented in the assignment.
+The data is loaded as presented in the assignment. The data is loaded as the raw dataset, the centered dataset and the standardized dataset. 
 
 Three research questions are defined:
 
@@ -76,12 +80,21 @@ Three research questions are defined:
 
 In the complete dataset, `r round(mean(RejectionStatus$Reject_Status) * 100) ` % of the transplanted kidnesy were rejected.
 
+## Simple plot of the raw data
+
+Before plotting dimension reduced representations of the data, a simple plot of the raw data is made. (insert Stevens code)
+
+```{r}
+
+
+```
+
 ## Sparse principle components analysis
 
 ```{r sparse pca}
-Gen_spc <- PMA::SPC(GeneExpression, K = 2, sumabsv = 2)
+Gen_spc <- PMA::SPC(GeneExpression_C, K = 2, sumabsv = 2)
 Uk <- Gen_spc$u ; Dk <- diag(Gen_spc$d)
-Zk <- data.frame(X = Uk %*% Dk, Patient_ID = row.names(GeneExpression))
+Zk <- data.frame(X = Uk %*% Dk, Patient_ID = row.names(GeneExpression_C))
 Zk <- merge(Zk, RejectionStatus, by = 'Patient_ID') %>% 
   mutate(Reject_Status = as.factor(Reject_Status))
 ggplot(data = Zk, aes(x = X.1, y = X.2, col = Reject_Status)) + 
@@ -96,24 +109,24 @@ Unfortunately, naive sparce principle component analysis does not seem to work w
 
 ```{r pls}
 GeneExpression_comb <-
-  list(genes = as.matrix(GeneExpression), Rejection = as.matrix(RejectionStatus$Reject_Status))
+  list(genes = as.matrix(GeneExpression_C), Rejection = as.matrix(RejectionStatus$Reject_Status))
 pls_model <- pls::plsr(genes ~ Rejection, data = GeneExpression_comb, validation = "CV")
 ```
 
 ## Multi-dimensional scaling:
 
 ```{r mds}
-GeneExpression.svd <- svd(GeneExpression)
+GeneExpression_C.svd <- svd(GeneExpression_C)
 
 k <- 2
-Uk <- GeneExpression.svd$u[,1:k]; Dk <- diag(GeneExpression.svd$d[1:k]) 
-Vk <-GeneExpression.svd$v[,1:k]
+Uk <- GeneExpression_C.svd$u[,1:k]; Dk <- diag(GeneExpression_C.svd$d[1:k]) 
+Vk <-GeneExpression_C.svd$v[,1:k]
 Xk <- Uk %*% Dk %*% t(Vk)
 Zk <- Uk %*% Dk
 
 rownames(Zk) <- RejectionStatus[[2]]
-rownames(Vk) <- colnames(GeneExpression)
-ColnamesNull <- colnames(GeneExpression)
+rownames(Vk) <- colnames(GeneExpression_C)
+ColnamesNull <- colnames(GeneExpression_C)
 ColnamesNull[]<- "" 
 
 biplot(Uk, Vk, xlabs=RejectionStatus[[2]], var.axes=FALSE, ylabs=ColnamesNull, cex=0.75)
@@ -125,25 +138,21 @@ plot(Zk[,1], Zk[,2], col=RejectionStatus$Reject_Status+1,pch=19)
 In the biplot of the two first dimensions of the svd, no distinction can be made between rejected and accepted kidneys.
 
 ```{r plots mds}
-totvar <- sum(GeneExpression.svd$d^2)/(nrow(GeneExpression)-1)
-plot(GeneExpression.svd$d^2/(nrow(GeneExpression)-1), type="b", 
-     ylab="eigenvalue",xlab="j",cex=2, cex.axis=1.5, cex.lab=1.5)
-barplot(GeneExpression.svd$d^2/(nrow(GeneExpression)-1)/totvar, 
-        names.arg=1:nrow(GeneExpression), xlab='j', cex.lab=2)
-barplot(cumsum(GeneExpression.svd$d^2/(nrow(GeneExpression)-1)/totvar), names.arg=1:nrow(GeneExpression), ylab='cumulative prop. of total variance')
+totvar <- sum(GeneExpression_C.svd$d^2)/(nrow(GeneExpression_C)-1)
+barplot(cumsum(GeneExpression_C.svd$d^2/(nrow(GeneExpression_C)-1)/totvar), names.arg=1:nrow(GeneExpression_C), ylab='cumulative prop. of total variance')
 ```
 
-In the scree plots above it can be seen that the two first dimensions account for only 26% of the total variance in the dataset.
+In the scree plot above it can be seen that the two first dimensions account for only 26% of the total variance in the dataset.
 
 ## LDA
 
 In an exploratory fashion, we look at the results of an LDA, performed with the first 300 gene expressions. We chose to do this because LDA performed using all gene expressions did not work.
 
 ```{r lda}
-GeneExpression.lda <- lda(GeneExpression[,1:300], grouping = RejectionStatus$Reject_Status)
+GeneExpression_C.lda <- lda(GeneExpression_C[,1:300], grouping = RejectionStatus$Reject_Status)
 
-V <- GeneExpression.lda$scaling
-Z <- GeneExpression[,1:300] %*% V
+V <- GeneExpression_C.lda$scaling
+Z <- GeneExpression_C[,1:300] %*% V
 
 plot(Z, col =  RejectionStatus$Reject_Status+1, pch= 16, cex = 1.5)
 
@@ -164,35 +173,35 @@ id <- which(abs(V) > 2*sd(V))
 The most contributing gene expressions are:
 
 ```{r}
-colnames(GeneExpression[,id])
+colnames(GeneExpression_C[,id])
 ```
 
 We repeated this for 243 folds of 225 gene expressions because
 
 ```{r}
-243 * 225 == dim(GeneExpression)[2]
+243 * 225 == dim(GeneExpression_C)[2]
 ```
 
 ```{r lda sequential on all}
 id.all <- vector("numeric")
 
-for (i in 1:(dim(GeneExpression)[2]/225)){
+for (i in 1:(dim(GeneExpression_C)[2]/225)){
 
   start <- 1 + (i-1)*225
   stop <- start + 224
-  gene.lda <- lda(GeneExpression[,start:stop], grouping = RejectionStatus$Reject_Status)
+  gene.lda <- lda(GeneExpression_C[,start:stop], grouping = RejectionStatus$Reject_Status)
 
   V <- gene.lda$scaling
-  Z <- GeneExpression[,start:stop] %*% V
+  Z <- GeneExpression_C[,start:stop] %*% V
 
 
   id.all <- append(id.all, which(abs(V) > 3*sd(V)) - 1 + start) # -1 to start at 0
 
 }
-gene.lda <- lda(GeneExpression[,id.all], grouping = RejectionStatus$Reject_Status)
+gene.lda <- lda(GeneExpression_C[,id.all], grouping = RejectionStatus$Reject_Status)
 
 V <- gene.lda$scaling
-Z <- GeneExpression[,id.all] %*% V
+Z <- GeneExpression_C[,id.all] %*% V
 plot(Z, col =  RejectionStatus$Reject_Status+1, pch= 16, cex = 1.5)
 
 ```
@@ -206,7 +215,7 @@ abline(h=c(2,-2)*sd(V), col = 2)
 
 id <- which(abs(V) > 2*sd(V))
 
-colnames(GeneExpression[,id.all][,id])
+colnames(GeneExpression_C[,id.all][,id])
 ```
 
 
@@ -271,48 +280,132 @@ Locally linear embedding (Roweis and Saul, 2000) is a nonlinear dimension reduct
 (Value of k (number of neighbours) could be optimised)
 
 ```{r}
-lle <- RDRToolbox::LLE(data=GeneExpression, dim=3, k=100)
+lle <- RDRToolbox::LLE(data=GeneExpression_C, dim=3, k=50)
 labels = c("first component", "second component", 'third component')
+plot(lle[,1],lle[,2],col=RejectionStatus$Reject_Status+1,pch=19)
+plot(lle[,2],lle[,3],col=RejectionStatus$Reject_Status+1,pch=19)
+# 3D interactive plot: (remove in final version)
 plot <-RDRToolbox::plotDR(data=lle, labels=RejectionStatus[,2], axesLabels=labels)
 ```
 But also with LLE, we cannot differentiate between the accepted and rejected kidneys.
 (more on LLE: https://www.stat.cmu.edu/~cshalizi/350/lectures/14/lecture-14.pdf)
 
-# Differentiating genes between kidney acceptance and rejection
+## ISOMAP
 
-A two-sided two-sample Welch t-test is done to determine whether the two groups (rejected and accepted kidneys) can be differentiated based on the gene data, whether the mean  of the two groups is different.The Welch t-test is done because of unequal variances/difference in amount of samples between the two groups.
-
-(remark 1: do we first need to test whether the assumtion of normality is satisfied? 
-remark 2: also test whether the variances of the two groups is unequal? (there will be some variables for sure where variance is unequal, therefore safer to do the Welch t-test rather than the student t-test)
-remark 3: MTP takes a long time to run (1 hour)
-remark 4: see http://web.mit.edu/r/current/arch/i386_linux26/lib/R/library/multtest/html/MTP.html for MTP function
-remark 5: not sure about arguments 'fdr.method' yet
-remark6: I have a permission error on my pc (work pc) and don't have admin rights to solve this, so I cannot check the output :( )
+ISOMAP is a a nonlinear dimension reduction technique presented by Tenenbaum, Silva and Langford in 2000. It preserves rather the global properties of the data. It uses  multidimensional scaling but then with incorporating the geodesic distances imposed by a weighted graph of the k neighbours of each point.
 
 ```{r}
-testMTP <- multtest::MTP(X=t(GeneExpression), Y = RejectionStatus[,2], 
-    na.rm = TRUE, test = "t.twosamp.unequalvar", robust = FALSE, 
-    standardize = TRUE , alternative = "two.sided", typeone='fdr', fdr.method = "conservative", 
-    alpha = 0.10)
-print(testMTP)
-summary(testMTP)
-#par(mfrow=c(2,2))
-plot(testMTP,top=9)
+IM <- RDRToolbox::Isomap(data=GeneExpression_C, dims=3, k=30)
+labelsIM <- c("first component", "second component", "third component")
+plot(IM$dim3[,1],IM$dim3[,2],col=RejectionStatus$Reject_Status+1,pch=19)
+plot(IM$dim3[,2],IM$dim3[,3],col=RejectionStatus$Reject_Status+1,pch=19)
+# 3d plot (remove in final version)
+RDRToolbox::plotDR(data=IM$dim3, labels=RejectionStatus[,2], axesLabels=labelsIM)
+
+RDRToolbox::Isomap(data=GeneExpression_C, dims=1:10, k=30, plotResiduals=TRUE)
+```
+The parameter k is varied manually so that the maps are optimal. The value k could be optimised.
+With ISOMAP, it is also not possible to make a distinction between the group of accepted and rejected kidneys.
+
+## Sammon mapping
+
+Sammon mapping is also a nonlinear dimension reduction method. The cost function of the Sammon method is similar to that of MDS, except that it is adapted by dividing the squared error in the representation of each pairwise Euclidean distance by the original Euclidean distance in the high-dimensional space. In this way, local structure is better preserved than in MDS.
+
+```{r}
+sammon <- MASS::sammon(dist(GeneExpression_C), k=3, niter=100)
+plot(sammon$points[,1], sammon$points[,2], type = "p", col=RejectionStatus$Reject_Status+1, pch=19)
+plot(sammon$points[,2], sammon$points[,3], type = "p", col=RejectionStatus$Reject_Status+1, pch=19)
+```
+
+## Diffusion maps
+
+Diffusion mapping is also a nonlinear dimension reduction method based on the eigenvectors and eigenvalues of the data. The global strucure of the data is mapped by integration of local similarities at different scales. It works with probablities of point x randomly walking to y, and is based on the heat diffusion equation.
+
+```{r}
+DiffusionMap <- diffusionMap::diffuse(dist(GeneExpression_C), maxdim=3)
+plot(DiffusionMap$X, type='p', col=RejectionStatus$Reject_Status+1, pch=19)
+```
+
+# Differentiating genes between kidney acceptance and rejection
+
+All hypothesis tests are done on the centered, not-standardized data. 
+
+First, a check of the variables follow a normal distribution for both the accepted and rejected kidneys. This is done by checking several QQ plots. 
+
+remark 1: noticed the method is not BH after all. Will fix this later an use Stevens suggestion
+remark 2: also test whether the variances of the two groups is unequal? (there will be some variables for sure where variance is unequal, therefore safer to do the Welch t-test rather than the student t-test
+
+
+```{r QQ plots for normality check, for several random genes}
+
+Rejected=matrix(,ncol=ncol(GeneExpression_C))
+for (i in seq(1,nrow(RejectionStatus),1)){
+  if (RejectionStatus[[i,2]]==0){
+    Rejected <- rbind(Rejected, GeneExpression_C[i,])
+  }
+}
+
+Accepted=matrix(,ncol=ncol(GeneExpression_C))
+for (i in seq(1,nrow(RejectionStatus),1)){
+  if (RejectionStatus[[i,2]]==1){
+    Accepted <- rbind(Accepted, GeneExpression_C[i,])
+  }
+}
+
+Selection <- sample(seq(1,ncol(GeneExpression_C)), 15)
+
+for (j in Selection) {
+    qqPlot(Rejected[,j], pch = 16, 
+           main=paste('QQ plot for expression of ', colnames(GeneExpression)[j] , 
+                      'in rejected kidneys'))
+    qqPlot(Accepted[,j], pch = 16, 
+           main=paste('QQ plot for expression of ', colnames(GeneExpression)[j] , 
+                      'in accepted kidneys'))
+}
 
 ```
+
+The QQ plots show that most genes follow the normal distribution, but there are also genes that do not.
+
+remark: maybe replace by a large-scale hypothesis test for normality later on and then decide for the Welch t-test or Wilcoxon Mann-Whitney (now both are in the code)
+
+A two-sided two-sample Welch t-test is done on the centered data (not standardized) to determine whether the two groups (rejected and accepted kidneys) can be differentiated based on the gene data, whether the mean  of the two groups is different.The Welch t-test is done because of unequal variances/difference in amount of samples between the two groups.
+
+The test takes one hour to run. Therefore, the resulting object is loaded instead.
+
+```{r two-sided two-sample Welch t-test}
+# testMTP_Welch-t <- multtest::MTP(X=t(GeneExpression_C), Y = RejectionStatus[,2], 
+#    na.rm = TRUE, test = "t.twosamp.unequalvar", robust = FALSE, 
+#    standardize = TRUE , alternative = "two.sided", typeone='fdr', 
+#     fdr.method =       "conservative", alpha = 0.10)
+
+```
+
+Interpretation: after exercise session 5
+
+A Wilcoxon Mann-Whitney test is done on the centered data, to determine whether the two groups follow the same distribution.
+
+```{r Wilcoxon Mann-Whitney test}
+# testMTP_WMW <- multtest::MTP(X=t(GeneExpression_C), Y = RejectionStatus[,2], 
+#    na.rm = TRUE, test = "t.twosamp.equalvar", robust = FALSE, 
+#    standardize = TRUE , alternative = "two.sided", typeone='fdr', 
+#    fdr.method = "conservative", 
+#    alpha = 0.10)
+```
+
+Interpretation: after exercise session 5
 
 # Prediction of kidney transplant rejection
 
 ```{r train test split}
 ind_train <-
-  sample(seq_len(nrow(RejectionStatus)), size = floor(nrow(RejectionStatus) * 0.80))
+  sample(seq_len(nrow(RejectionStatus_C)), size = floor(nrow(RejectionStatus_C) * 0.80))
 
-Y_train <- as.matrix(RejectionStatus[ind_train, 'Reject_Status'])
+Y_train <- as.matrix(RejectionStatus_C[ind_train, 'Reject_Status'])
 X_train <- as.matrix(GeneExpression[ind_train,])
-Y_test <- as.matrix(RejectionStatus[-ind_train, 'Reject_Status'])
+Y_test <- as.matrix(RejectionStatus_C[-ind_train, 'Reject_Status'])
 X_test <- as.matrix(GeneExpression[-ind_train,])
 ```
-
 
 ## Lasso regression
 
