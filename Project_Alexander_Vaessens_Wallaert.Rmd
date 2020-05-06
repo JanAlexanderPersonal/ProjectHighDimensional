@@ -38,6 +38,7 @@ library(multtest)
 library(RDRToolbox)
 library(diffusionMap)
 library(car)
+library(sgof)
 
 knitr::opts_chunk$set(echo = TRUE, fig.width=6, fig.height=4)
 
@@ -389,7 +390,9 @@ for (j in Selection) {
 
 The QQ plots show that most genes follow the normal distribution, but there are also genes that do not.
 
-remark: maybe replace by a large-scale hypothesis test for normality later on and then decide for the Welch t-test or Wilcoxon Mann-Whitney (now both are in the code)
+remark: maybe replace by a large-scale hypothesis test for normality later on and then decide for the Welch t-test or Wilcoxon Mann-Whitney (now both are in the code) 
+
+(remark on remark: I would rather not do that: On this scale you are guaranteed to have rejections. So in a way you already know the outcome (some are non normal). But if you would allow for a fraction to be non normal, then you have to decide how large that margin would be and then it is again 'guess work'.)
 
 A two-sided two-sample Welch t-test is done on the centered data (not standardized) to determine whether the two groups (rejected and accepted kidneys) can be differentiated based on the gene data, whether the mean  of the two groups is different.The Welch t-test is done because of unequal variances/difference in amount of samples between the two groups.
 
@@ -401,6 +404,26 @@ The test takes one hour to run. Therefore, the resulting object is loaded instea
 #    standardize = TRUE , alternative = "two.sided", typeone='fdr', 
 #     fdr.method =       "conservative", alpha = 0.10)
 
+# duurt niet lang
+p.val <- numeric(ncol(GeneExpression_C))
+t.val <- numeric(ncol(GeneExpression_C))
+
+for(i in 1:length(p.val)){
+   t_object <- t.test(GeneExpression_C[RejectionStatus$Reject_Status == 0,i],
+         GeneExpression_C[RejectionStatus$Reject_Status == 1,i], 
+         var.equal = F)
+   
+  p.val[i] <- t_object$p.value
+  t.val[i] <- t_object$statistic
+}
+hist(p.val, main = "p-values 2 sided Welch t test")
+hist(t.val, main = "Test statistic Welch t test", breaks = 50)
+# duurt wel lang (+- 5 minuten):
+pval_bh <- BH(p.val, alpha = .1)
+hist(pval_bh$Adjusted.pvalues)
+table(p.val < 0.1)
+table(pval_bh$Adjusted.pvalues < 0.1)
+pval_bh$FDR
 ```
 
 Interpretation: after exercise session 5
