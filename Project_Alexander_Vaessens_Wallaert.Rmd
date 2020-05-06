@@ -456,12 +456,12 @@ Interpretation: after exercise session 5
 
 ```{r train test split}
 ind_train <-
-  sample(seq_len(nrow(RejectionStatus_C)), size = floor(nrow(RejectionStatus_C) * 0.80))
+  sample(seq_len(nrow(RejectionStatus)), size = floor(nrow(RejectionStatus) * 0.80))
 
-Y_train <- as.matrix(RejectionStatus_C[ind_train, 'Reject_Status'])
-X_train <- as.matrix(GeneExpression[ind_train,])
-Y_test <- as.matrix(RejectionStatus_C[-ind_train, 'Reject_Status'])
-X_test <- as.matrix(GeneExpression[-ind_train,])
+Y_train <- as.matrix(RejectionStatus[ind_train, 'Reject_Status'])
+X_train <- as.matrix(GeneExpression_C[ind_train,])
+Y_test <- as.matrix(RejectionStatus[-ind_train, 'Reject_Status'])
+X_test <- as.matrix(GeneExpression_C[-ind_train,])
 ```
 
 ## Lasso regression
