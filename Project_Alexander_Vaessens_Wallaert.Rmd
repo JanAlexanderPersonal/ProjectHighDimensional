@@ -85,19 +85,29 @@ Before plotting dimension reduced representations of the data, a simple plot of 
 
 ```{r}
 df <- tibble(patient = RejectionStatus$Patient_ID, 
-             reject = ifelse(RejectionStatus$Reject_Status == 1, "Rejected", "Not Rejected"), 
-             as.data.frame(t(X_GSE21374))) %>%
+             reject = ifelse(RejectionStatus$Reject_Status == 1, "Rejected", "Accepted"), 
+             as.data.frame(GeneExpression_C)) %>%
   pivot_longer(cols = c(-reject,-patient) , names_to = "gene", values_to = "expression")
 
 # mean
 df %>%
   group_by(reject, gene) %>%
-  summarise(meanexpr = mean(expression)) -> mean_expression
+  summarise(mean = mean(expression),
+            sd = sd(expression),
+            min = min(expression),
+            max = max(expression),
+            median = median(expression),
+            iqr = IQR(expression)) -> basics
   
-ggplot(mean_expression, aes(meanexpr, fill = reject)) +
-  geom_density(alpha = 0.4) +
+basics %>%
+  pivot_longer(-c(reject, gene), names_to = "statistic", values_to = "value") -> basics_long
+
+ggplot(basics_long, aes(value, fill = reject)) +
+  geom_density(alpha = 0.5) +
   theme_classic() +
-  labs(fill = "Status") -> plot_mean
+  labs(fill = "Status") + 
+  facet_wrap("statistic", scales = "free" ) +
+  scale_fill_manual(values = c("#4DBBD5B2", "#E64B35B2"))
 
 ```
 
