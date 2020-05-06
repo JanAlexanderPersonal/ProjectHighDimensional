@@ -108,7 +108,7 @@ ggplot(basics_long, aes(value, fill = reject)) +
   theme_classic() +
   labs(fill = "Status") + 
   facet_wrap("statistic", scales = "free" ) +
-  scale_fill_manual(values = c("#4DBBD5B2", "#E64B35B2"))
+  scale_fill_manual(values = c("#4DBBD5", "#E64B35"))
 
 ```
 
@@ -348,6 +348,18 @@ Diffusion mapping is also a nonlinear dimension reduction method based on the ei
 DiffusionMap <- diffusionMap::diffuse(dist(GeneExpression_C), maxdim=3)
 plot(DiffusionMap$X, type='p', col=RejectionStatus$Reject_Status+1, pch=19)
 ```
+
+## t-SNE
+
+```{r}
+gene_dist <- dist(GeneExpression_C)
+tsne_Z <- tsne(gene_dist, k = 1, perplexity = 45)
+tibble(as.data.frame(tsne_Z), reject = factor(RejectionStatus$Reject_Status)) %>%
+  ggplot(aes(V1, V2, color = reject)) +
+  geom_point() +
+  theme_classic()
+```
+
 
 # Differentiating genes between kidney acceptance and rejection
 
