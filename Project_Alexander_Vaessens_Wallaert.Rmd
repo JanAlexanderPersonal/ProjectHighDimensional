@@ -89,7 +89,7 @@ df <- tibble(patient = RejectionStatus$Patient_ID,
              as.data.frame(GeneExpression_C)) %>%
   pivot_longer(cols = c(-reject,-patient) , names_to = "gene", values_to = "expression")
 
-# mean
+# calculate summaries
 df %>%
   group_by(reject, gene) %>%
   summarise(mean = mean(expression),
@@ -98,10 +98,10 @@ df %>%
             max = max(expression),
             median = median(expression),
             iqr = IQR(expression)) -> basics
-  
+# long format  
 basics %>%
   pivot_longer(-c(reject, gene), names_to = "statistic", values_to = "value") -> basics_long
-
+# plot
 ggplot(basics_long, aes(value, fill = reject)) +
   geom_density(alpha = 0.5) +
   theme_classic() +
