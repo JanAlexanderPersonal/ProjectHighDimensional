@@ -26,7 +26,6 @@ header-includes: \usepackage{amsmath}
 
 rm(list = ls())
 
-library(ggplot2)
 library(latex2exp)
 library(tidyverse)
 library(boot)
@@ -85,7 +84,20 @@ In the complete dataset, `r round(mean(RejectionStatus$Reject_Status) * 100) ` %
 Before plotting dimension reduced representations of the data, a simple plot of the raw data is made. (insert Stevens code)
 
 ```{r}
+df <- tibble(patient = RejectionStatus$Patient_ID, 
+             reject = ifelse(RejectionStatus$Reject_Status == 1, "Rejected", "Not Rejected"), 
+             as.data.frame(t(X_GSE21374))) %>%
+  pivot_longer(cols = c(-reject,-patient) , names_to = "gene", values_to = "expression")
 
+# mean
+df %>%
+  group_by(reject, gene) %>%
+  summarise(meanexpr = mean(expression)) -> mean_expression
+  
+ggplot(mean_expression, aes(meanexpr, fill = reject)) +
+  geom_density(alpha = 0.4) +
+  theme_classic() +
+  labs(fill = "Status") -> plot_mean
 
 ```
 
