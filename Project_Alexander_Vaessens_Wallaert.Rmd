@@ -360,14 +360,14 @@ remark 2: also test whether the variances of the two groups is unequal? (there w
 
 ```{r QQ plots for normality check, for several random genes}
 
-Rejected=matrix(,ncol=ncol(GeneExpression_C))
+Rejected=matrix(ncol=ncol(GeneExpression_C))
 for (i in seq(1,nrow(RejectionStatus),1)){
   if (RejectionStatus[[i,2]]==0){
     Rejected <- rbind(Rejected, GeneExpression_C[i,])
   }
 }
 
-Accepted=matrix(,ncol=ncol(GeneExpression_C))
+Accepted=matrix(ncol=ncol(GeneExpression_C))
 for (i in seq(1,nrow(RejectionStatus),1)){
   if (RejectionStatus[[i,2]]==1){
     Accepted <- rbind(Accepted, GeneExpression_C[i,])
@@ -378,10 +378,10 @@ Selection <- sample(seq(1,ncol(GeneExpression_C)), 15)
 
 for (j in Selection) {
     qqPlot(Rejected[,j], pch = 16, 
-           main=paste('QQ plot for expression of ', colnames(GeneExpression)[j] , 
+           main=paste('QQ plot for expression of ', colnames(GeneExpression_C)[j] , 
                       'in rejected kidneys'))
     qqPlot(Accepted[,j], pch = 16, 
-           main=paste('QQ plot for expression of ', colnames(GeneExpression)[j] , 
+           main=paste('QQ plot for expression of ', colnames(GeneExpression_C)[j] , 
                       'in accepted kidneys'))
 }
 
