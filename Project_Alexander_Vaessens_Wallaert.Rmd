@@ -141,7 +141,7 @@ pls_model <- pls::plsr(genes ~ Rejection, data = GeneExpression_comb, validation
 ```{r mds}
 GeneExpression_C.svd <- svd(GeneExpression_C)
 
-k <- 2
+k <- 3
 Uk <- GeneExpression_C.svd$u[,1:k]; Dk <- diag(GeneExpression_C.svd$d[1:k]) 
 Vk <-GeneExpression_C.svd$v[,1:k]
 Xk <- Uk %*% Dk %*% t(Vk)
@@ -152,10 +152,8 @@ rownames(Vk) <- colnames(GeneExpression_C)
 ColnamesNull <- colnames(GeneExpression_C)
 ColnamesNull[]<- "" 
 
-biplot(Uk, Vk, xlabs=RejectionStatus[[2]], var.axes=FALSE, ylabs=ColnamesNull, cex=0.75)
-
-# eventueel
 plot(Zk[,1], Zk[,2], col=RejectionStatus$Reject_Status+1,pch=19)
+plot(Zk[,2], Zk[,3], col=RejectionStatus$Reject_Status+1,pch=19)
 ```
 
 In the biplot of the two first dimensions of the svd, no distinction can be made between rejected and accepted kidneys.
@@ -165,7 +163,7 @@ totvar <- sum(GeneExpression_C.svd$d^2)/(nrow(GeneExpression_C)-1)
 barplot(cumsum(GeneExpression_C.svd$d^2/(nrow(GeneExpression_C)-1)/totvar), names.arg=1:nrow(GeneExpression_C), ylab='cumulative prop. of total variance')
 ```
 
-In the scree plot above it can be seen that the two first dimensions account for only 26% of the total variance in the dataset.
+In the scree plot above it can be seen that the two first dimensions account for only 25% of the total variance in the dataset and the first three dimensions for 29%. To account for 80% of the total variance, 120 dimensions are needed.
 
 ## LDA
 
@@ -340,6 +338,8 @@ plot(sammon$points[,1], sammon$points[,2], type = "p", col=RejectionStatus$Rejec
 plot(sammon$points[,2], sammon$points[,3], type = "p", col=RejectionStatus$Reject_Status+1, pch=19)
 ```
 
+No distinction between the two groups can be made.
+
 ## Diffusion maps
 
 Diffusion mapping is also a nonlinear dimension reduction method based on the eigenvectors and eigenvalues of the data. The global strucure of the data is mapped by integration of local similarities at different scales. It works with probablities of point x randomly walking to y, and is based on the heat diffusion equation.
@@ -348,6 +348,8 @@ Diffusion mapping is also a nonlinear dimension reduction method based on the ei
 DiffusionMap <- diffusionMap::diffuse(dist(GeneExpression_C), maxdim=3)
 plot(DiffusionMap$X, type='p', col=RejectionStatus$Reject_Status+1, pch=19)
 ```
+
+No distinction between the two groups can be made.
 
 ## t-SNE
 
@@ -404,18 +406,12 @@ The QQ plots show that most genes follow the normal distribution, but there are 
 
 remark: maybe replace by a large-scale hypothesis test for normality later on and then decide for the Welch t-test or Wilcoxon Mann-Whitney (now both are in the code) 
 
-(remark on remark: I would rather not do that: On this scale you are guaranteed to have rejections. So in a way you already know the outcome (some are non normal). But if you would allow for a fraction to be non normal, then you have to decide how large that margin would be and then it is again 'guess work'.)
+(remark on remark: I would rather not do that: On this scale you are guaranteed to have rejections. So in a way you already know the outcome (some are non normal). But if you would allow for a fraction to be non normal, then you have to decide how large that margin would be and then it is again 'guess work'. 
+answer to remark: Yes, that is true! And after the professors explaination, we don't really have to be bothered about checking assumptions. So: QQ plots and that's it)
 
 A two-sided two-sample Welch t-test is done on the centered data (not standardized) to determine whether the two groups (rejected and accepted kidneys) can be differentiated based on the gene data, whether the mean  of the two groups is different.The Welch t-test is done because of unequal variances/difference in amount of samples between the two groups.
 
-The test takes one hour to run. Therefore, the resulting object is loaded instead.
-
 ```{r two-sided two-sample Welch t-test}
-# testMTP_Welch-t <- multtest::MTP(X=t(GeneExpression_C), Y = RejectionStatus[,2], 
-#    na.rm = TRUE, test = "t.twosamp.unequalvar", robust = FALSE, 
-#    standardize = TRUE , alternative = "two.sided", typeone='fdr', 
-#     fdr.method =       "conservative", alpha = 0.10)
-
 # duurt niet lang
 p.val <- numeric(ncol(GeneExpression_C))
 t.val <- numeric(ncol(GeneExpression_C))
@@ -443,11 +439,7 @@ Interpretation: after exercise session 5
 A Wilcoxon Mann-Whitney test is done on the centered data, to determine whether the two groups follow the same distribution.
 
 ```{r Wilcoxon Mann-Whitney test}
-# testMTP_WMW <- multtest::MTP(X=t(GeneExpression_C), Y = RejectionStatus[,2], 
-#    na.rm = TRUE, test = "t.twosamp.equalvar", robust = FALSE, 
-#    standardize = TRUE , alternative = "two.sided", typeone='fdr', 
-#    fdr.method = "conservative", 
-#    alpha = 0.10)
+
 ```
 
 Interpretation: after exercise session 5
