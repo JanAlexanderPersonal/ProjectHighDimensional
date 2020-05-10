@@ -34,8 +34,8 @@ library(pls)
 library(MASS)
 library(glmnet)
 library(ROCR)
-library(multtest)
-library(RDRToolbox)
+#library(multtest)
+#library(RDRToolbox)
 library(diffusionMap)
 library(car)
 library(sgof)
@@ -52,8 +52,8 @@ dim(RejectionStatus)
 dim(X_GSE21374)
 
 GeneExpression <- t(X_GSE21374)
-GeneExpression_C <- scale(t(X_GSE21374),scale = F)
-GeneExpression_S <- scale(t(X_GSE21374),scale = T)
+GeneExpression_C <- scale(t(X_GSE21374),scale = F) # centered
+GeneExpression_S <- scale(t(X_GSE21374),scale = T) # scaled
 # vraagje: zie cursus p 74, men geeft aan voor PCA dat
 # indien vars in zelfde eenheden zijn (in ons geval is dit zo), dan beter niet schalen.
 # Zouden we dan mss beter niet schalen voor PCA?
@@ -302,7 +302,7 @@ Locally linear embedding (Roweis and Saul, 2000) is a nonlinear dimension reduct
 
 (Value of k (number of neighbours) could be optimised)
 
-```{r}
+```{r, eval=FALSE}
 lle <- RDRToolbox::LLE(data=GeneExpression_C, dim=3, k=50)
 labels = c("first component", "second component", 'third component')
 plot(lle[,1],lle[,2],col=RejectionStatus$Reject_Status+1,pch=19)
@@ -317,7 +317,7 @@ But also with LLE, we cannot differentiate between the accepted and rejected kid
 
 ISOMAP is a a nonlinear dimension reduction technique presented by Tenenbaum, Silva and Langford in 2000. It preserves rather the global properties of the data. It uses  multidimensional scaling but then with incorporating the geodesic distances imposed by a weighted graph of the k neighbours of each point.
 
-```{r}
+```{r, eval=FALSE}
 IM <- RDRToolbox::Isomap(data=GeneExpression_C, dims=3, k=30)
 labelsIM <- c("first component", "second component", "third component")
 plot(IM$dim3[,1],IM$dim3[,2],col=RejectionStatus$Reject_Status+1,pch=19)
@@ -351,7 +351,7 @@ plot(DiffusionMap$X, type='p', col=RejectionStatus$Reject_Status+1, pch=19)
 
 ## t-SNE
 
-```{r}
+```{r, eval = FALSE}
 gene_dist <- dist(GeneExpression_C)
 tsne_Z <- tsne(gene_dist, k = 1, perplexity = 45)
 tibble(as.data.frame(tsne_Z), reject = factor(RejectionStatus$Reject_Status)) %>%
