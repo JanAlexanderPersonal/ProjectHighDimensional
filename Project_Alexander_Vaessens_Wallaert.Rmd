@@ -35,11 +35,7 @@ library(MASS)
 library(glmnet)
 library(ROCR)
 #library(multtest)
-<<<<<<< HEAD
 #library(RDRToolbox)
-=======
-library(RDRToolbox)
->>>>>>> d4452cf200afb7f984ba50101334449142849dec
 library(diffusionMap)
 library(car)
 library(sgof)
@@ -570,26 +566,33 @@ MISERR <- function(obs, pred, cutoff = 0.5){
 max.n.comps <- 50 #random nr
 
 cv.glm.pcr <- rep(NA, max.n.comps)
-
+npc.min <- rep(NA, 9)
+npc.val <- rep(NA, 9)
 X_train.svd <- svd(X_train)
 
 U <- X_train.svd$u
 D <- diag(X_train.svd$d)
-Z_train <- U%*%D
+Z_train <- U %*% D
 
-for(i in 1:max.n.comps){
-  fitdata <- data.frame(Y_train, Z_train[,1:i])
+for (j in seq(1, 9)) {
+  for (i in 1:max.n.comps) {
+    fitdata <- data.frame(Y_train, Z_train[, 1:i])
+    
+    mod <- glm(Y_train ~ ., data = fitdata, family = "binomial")
+    
+    cv.glm.pcr[i] <-
+      cv.glm(fitdata, mod, cost = {
+        function (obs, pred)
+          MISERR(obs, pred, cutoff = j/10)
+      }, K = 10)$delta[1]
+  }
   
-  mod <- glm(Y_train ~ ., data = fitdata, family = "binomial")
-  
-  cv.glm.pcr[i] <- cv.glm(fitdata, mod, cost = MISERR, K = 10)$delta[1]
+  plot(1:max.n.comps, cv.glm.pcr, type = "l")
+  npc.min[j] <- which.min(cv.glm.pcr)
+  npc.val[j] <- cv.glm.pcr[npc.min[j]]
+  abline(v = npc.min[j], col = 2)
 }
-
-npc.min <- which.min(cv.glm.pcr)
-
-plot(1:max.n.comps, cv.glm.pcr, type = "l")
-abline(v=npc.min, col =2)
-
+npc.m <- npc.min[which.min(npc.val)]
 ```
 
 
@@ -597,11 +600,11 @@ abline(v=npc.min, col =2)
 V <- X_train.svd$v
 Z_test <- X_test %*% V
 
-fitdata <- data.frame(Y_train, Z_train[,1:npc.min])
+fitdata <- data.frame(Y_train, Z_train[,1:npc.m])
 
 mod <- glm(Y_train ~ ., data = fitdata)
 
-preddata <- data.frame(Z_test[,1:npc.min])
+preddata <- data.frame(Z_test[,1:npc.m])
 
 pred_mod <- prediction(predict(mod, newdata = preddata), Y_test)
 
