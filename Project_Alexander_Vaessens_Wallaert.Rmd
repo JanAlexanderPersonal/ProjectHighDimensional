@@ -34,7 +34,7 @@ library(pls)
 library(MASS)
 library(glmnet)
 library(ROCR)
-library(multtest)
+#library(multtest)
 library(RDRToolbox)
 library(diffusionMap)
 library(car)
@@ -307,7 +307,7 @@ labels = c("first component", "second component", 'third component')
 plot(lle[,1],lle[,2],col=RejectionStatus$Reject_Status+1,pch=19)
 plot(lle[,2],lle[,3],col=RejectionStatus$Reject_Status+1,pch=19)
 # 3D interactive plot: (remove in final version)
-plot <-RDRToolbox::plotDR(data=lle, labels=RejectionStatus[,2], axesLabels=labels)
+#plot <-RDRToolbox::plotDR(data=lle, labels=RejectionStatus[,2], axesLabels=labels)
 ```
 But also with LLE, we cannot differentiate between the accepted and rejected kidneys.
 (more on LLE: https://www.stat.cmu.edu/~cshalizi/350/lectures/14/lecture-14.pdf)
@@ -322,7 +322,7 @@ labelsIM <- c("first component", "second component", "third component")
 plot(IM$dim3[,1],IM$dim3[,2],col=RejectionStatus$Reject_Status+1,pch=19)
 plot(IM$dim3[,2],IM$dim3[,3],col=RejectionStatus$Reject_Status+1,pch=19)
 # 3d plot (remove in final version)
-RDRToolbox::plotDR(data=IM$dim3, labels=RejectionStatus[,2], axesLabels=labelsIM)
+# RDRToolbox::plotDR(data=IM$dim3, labels=RejectionStatus[,2], axesLabels=labelsIM)
 
 RDRToolbox::Isomap(data=GeneExpression_C, dims=1:10, k=30, plotResiduals=TRUE)
 ```
@@ -356,7 +356,7 @@ No distinction between the two groups can be made.
 
 ```{r}
 gene_dist <- dist(GeneExpression_C)
-tsne_Z <- tsne(gene_dist, k = 1, perplexity = 45)
+tsne_Z <- tsne(gene_dist, k = 2, perplexity = 45)
 tibble(as.data.frame(tsne_Z), reject = factor(RejectionStatus$Reject_Status)) %>%
   ggplot(aes(V1, V2, color = reject)) +
   geom_point() +
