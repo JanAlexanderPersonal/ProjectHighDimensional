@@ -40,6 +40,7 @@ library(diffusionMap)
 library(car)
 library(sgof)
 library(tsne)
+library(locfdr)
 
 knitr::opts_chunk$set(echo = TRUE, fig.width=6, fig.height=4)
 
@@ -436,6 +437,81 @@ pval_bh$FDR
 ```
 
 Interpretation: after exercise session 5
+
+Another way is to do the BH95 method manually:
+
+```{r tests as in class}
+AllTestResults <-matrix(,nrow=ncol(GeneExpression),  
+                        ncol=4 ) 
+rownames(AllTestResults)=colnames(GeneExpression[1:54675])
+colnames(AllTestResults)=c('p-value', 'test-statistic', 'degreeFreedom', 'adjusted p-value')
+
+for (i in seq(1,54675)){
+  test=t.test(GeneExpression[,i]~RejectionStatus[,2])
+  AllTestResults[i,'p-value'] <- test$p.value
+  AllTestResults[i,'test-statistic'] <- test$statistic
+  AllTestResults[i,'degreeFreedom'] <- test$parameter
+}
+
+```
+
+Histogram of the p-values
+
+```{r histogram p-values}
+hist(AllTestResults[,'p-value'], main='Histogram of the p-values', xlab='p-value')
+```
+
+This histogram has not the uniform distribution, it has many small p-values. This means that we can reject the null hypotheses for many variables.
+
+Control at FDR 10%
+
+```{r FDR control}
+FDRControl<- AllTestResults[order(AllTestResults[,'p-value']),]
+Vec <- c(seq(1,54675,by=1)*0.10/54675)
+FDRControl <- cbind(FDRControl, Vec)
+Discoveries_FDR <- c()
+for (i in seq(1,54675))
+{
+  if (FDRControl[i,'p-value'] < FDRControl[i,'Vec'])
+  {
+    Discoveries_FDR <- rbind(Discoveries_FDR, c(TRUE))}
+  if (FDRControl[i,'p-value'] > FDRControl[i,'Vec'])
+  {
+    Discoveries_FDR <- rbind(Discoveries_FDR, c(FALSE))}
+}
+
+rownames(Discoveries_FDR) <- rownames(FDRControl) 
+table(Discoveries_FDR) 
+```
+
+We have 18080 accepted hypotheses and 36595 rejected null-hypothyses or discoveries. 
+Calculation and plotting of the z-scores and comparison to the normal distribution.
+
+```{r lfdr and z-scores}
+z_scores <- c()
+for (i in seq(1,54675,1)){
+  z_score=qnorm(pt(AllTestResults[i,'test-statistic'],df=AllTestResults[i,'degreeFreedom']))
+  z_scores <- cbind(z_scores, z_score)
+}
+
+hist(z_scores,breaks=120,prob=T,ylim=c(0,0.39))
+curve(dnorm(x, mean=0, sd=1),
+      col="darkblue", lwd=2, add=TRUE, yaxt="n")
+```
+
+From this plot we can conclude that there are most nonnulls can be discriminated well
+
+```{r lfdr}
+fdr <- locfdr(z_scores,plot=0,nulltype=0)$fdr
+hist(z_scores,breaks=120,prob=T,ylim=c(0,0.39), ylab=NULL, axes=FALSE, main='lfdr and z-scores')
+par(new=TRUE)
+plot(z_scores[order(z_scores)],fdr[order(z_scores)],
+     type="l",lwd=2,col="red",xlab="z-scores",lty=2,
+     ylab="fdr")
+```
+
+from this plot we can conclude that we can obtain a small fdr for very small (negative z-scores, smaller than -3) and for very large z-scores (larger than 3).
+
 
 A Wilcoxon Mann-Whitney test is done on the centered data, to determine whether the two groups follow the same distribution.
 
