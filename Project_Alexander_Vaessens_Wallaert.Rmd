@@ -560,7 +560,7 @@ pred_m <-
 perf <- performance(pred_m, 'sens', 'fpr')
 plot(perf)
 ```
-
+AUC is `r performance(pred_m, "auc")@y.values`.
 
 ## Principal component regression
 
