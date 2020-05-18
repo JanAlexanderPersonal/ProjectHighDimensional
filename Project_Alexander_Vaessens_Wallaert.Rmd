@@ -82,6 +82,8 @@ Three research questions are defined:
 
 In the complete dataset, `r round(mean(RejectionStatus$Reject_Status) * 100) ` % of the transplanted kidnesy were rejected.
 
+We start of with descriptive statistics
+
 ## Descriptives
 
 Several descriptive statistics (mean, sd, median, iqr, min, and max) were calculated for every gene and kidney rejection status combination. This resulted in 2 (accepted vs. rejected) distributions of those statistics across genes. Note that these statistics were only calculated to perform a visual inspection. The resulted plot is presented in figure \ref{descriptives}. From this figure we can see there are, at least on this level, differences between groups. Most notable are the mean and median expression levels which tend to be more centered around the overall (across groups) mean expression levels in the _accepted_ group and more varying in the _rejected_ group. There seems to be more variablity in the measures of dispersion in the _rejected_ group. Finally there are minimal differences between the min/max expression level distributions, perhaps suggesting that gene expression levels in the _rejected_ group are slightly less extreme than in the _accepted_ group.
@@ -123,7 +125,8 @@ ggplot(basics_long, aes(value, fill = reject)) +
 ## Sparse principle components analysis
 
 ```{r sparse pca}
-Gen_spc <- PMA::SPC(GeneExpression_C, K = 2, sumabsv = 2)
+SPC.cv(GeneExpression_C)
+Gen_spc <- PMA::SPC(GeneExpression_C, K = 2, sumabsv = 5)
 Uk <- Gen_spc$u ; Dk <- diag(Gen_spc$d)
 Zk <- data.frame(X = Uk %*% Dk, Patient_ID = row.names(GeneExpression_C))
 Zk <- merge(Zk, RejectionStatus, by = 'Patient_ID') %>% 
@@ -135,14 +138,6 @@ rm(Zk, Dk, Uk, X_GSE21374, Gen_spc)
 ```
 
 Unfortunately, naive sparce principle component analysis does not seem to work well.
-
-## Partial least squares:
-
-```{r pls}
-GeneExpression_comb <-
-  list(genes = as.matrix(GeneExpression_C), Rejection = as.matrix(RejectionStatus$Reject_Status))
-pls_model <- pls::plsr(genes ~ Rejection, data = GeneExpression_comb, validation = "CV")
-```
 
 ## Multi-dimensional scaling:
 
@@ -173,134 +168,6 @@ barplot(cumsum(GeneExpression_C.svd$d^2/(nrow(GeneExpression_C)-1)/totvar), name
 
 In the scree plot above it can be seen that the two first dimensions account for only 25% of the total variance in the dataset and the first three dimensions for 29%. To account for 80% of the total variance, 120 dimensions are needed.
 
-## LDA
-
-In an exploratory fashion, we look at the results of an LDA, performed with the first 300 gene expressions. We chose to do this because LDA performed using all gene expressions did not work.
-
-```{r lda}
-GeneExpression_C.lda <- lda(GeneExpression_C[,1:300], grouping = RejectionStatus$Reject_Status)
-
-V <- GeneExpression_C.lda$scaling
-Z <- GeneExpression_C[,1:300] %*% V
-
-plot(Z, col =  RejectionStatus$Reject_Status+1, pch= 16, cex = 1.5)
-
-```
-
-We can see a clear distinction between the 2 rejection status groups.
-
-```{r plot lda}
-plot(V, cex = 0.8, cex.axis = 1.5, cex.lab = 1.5, xlab = "gene ID",
-     ylab = "loading")
-
-abline(h=0)
-abline(h=c(2,-2)*sd(V), col = 2)
-
-id <- which(abs(V) > 2*sd(V))
-```
-
-The most contributing gene expressions are:
-
-```{r}
-colnames(GeneExpression_C[,id])
-```
-
-We repeated this for 243 folds of 225 gene expressions because
-
-```{r}
-243 * 225 == dim(GeneExpression_C)[2]
-```
-
-```{r lda sequential on all}
-id.all <- vector("numeric")
-
-for (i in 1:(dim(GeneExpression_C)[2]/225)){
-
-  start <- 1 + (i-1)*225
-  stop <- start + 224
-  gene.lda <- lda(GeneExpression_C[,start:stop], grouping = RejectionStatus$Reject_Status)
-
-  V <- gene.lda$scaling
-  Z <- GeneExpression_C[,start:stop] %*% V
-
-
-  id.all <- append(id.all, which(abs(V) > 3*sd(V)) - 1 + start) # -1 to start at 0
-
-}
-gene.lda <- lda(GeneExpression_C[,id.all], grouping = RejectionStatus$Reject_Status)
-
-V <- gene.lda$scaling
-Z <- GeneExpression_C[,id.all] %*% V
-plot(Z, col =  RejectionStatus$Reject_Status+1, pch= 16, cex = 1.5)
-
-```
-
-```{r lda on all other output}
-plot(V, cex = 0.8, cex.axis = 1.5, cex.lab = 1.5, xlab = "gene ID",
-     ylab = "loading")
-
-abline(h=0)
-abline(h=c(2,-2)*sd(V), col = 2)
-
-id <- which(abs(V) > 2*sd(V))
-
-colnames(GeneExpression_C[,id.all][,id])
-```
-
-
-Capping off at +- 3SD, this resulted in `r length(id.all)` gene expressions.
-
-Using all these, and only these gene expressions, an LDA delivers `r dim(GeneExpression[,id.all][,id])[2]` genes.
-
-Why at 3SD? PAS OP UITVOEREN DUURT LANG, in plaats daarvan, zie plot in de map
-
-```{r lda probeersel, eval=FALSE}
-id.all <- vector("numeric")
-bss_wss <- vector("numeric")
-p <- vector("numeric")
-
-for(j in 2:8){
-  id.all <- vector("numeric")
-for (i in 1:(dim(gene)[2]/225)){
-
-  start <- 1 + (i-1)*225
-  stop <- start + 224
-  gene.lda <- lda(gene[,start:stop], grouping = RejectionStatus$Reject_Status)
-
-  V <- gene.lda$scaling
-  Z <- gene[,start:stop] %*% V
-
-
-  id.all <- append(id.all, which(abs(V) > j*sd(V)) - 1 + start) # -1 to start at 0
-
-}
-
-gene.lda <- lda(gene[,id.all], grouping = RejectionStatus$Reject_Status)
-
-V <- gene.lda$scaling
-Z <- gene[,id.all] %*% V
-
-a <- sum((Z[RejectionStatus$Reject_Status==1] - mean(Z[RejectionStatus$Reject_Status==1]))**2)
-b <- sum((Z[RejectionStatus$Reject_Status==0] - mean(Z[RejectionStatus$Reject_Status==0]))**2)
-
-within <- a+b
-
-
-a <- sum((mean(Z[RejectionStatus$Reject_Status==0])-mean(Z))**2)
-b <- sum((mean(Z[RejectionStatus$Reject_Status==1])-mean(Z))**2)
-between <- a*sum(RejectionStatus$Reject_Status==0)+b*sum(RejectionStatus$Reject_Status==1)
-
-bss_wss[j] <- between/within
-p[j] <- length(id.all)
-}
-
-plot(1:7, bss_wss, "b")
-```
-
-
-```{r plot sd}
-knitr::include_graphics("hoeveel_sd.png")
-```
 
 ## Sparse LDA
 
@@ -335,7 +202,13 @@ for(i in 1:3){
 }
 ```
 
-A sparse LDA was performed to find out which genes contribute the most in discriminating between the two rejection status groups. These genes could then be possible targets for further investigation. Due to computational constraints (our system ran out of memory) we needed to split the data set in 3 parts (each part consisting of 282 observations on `r dim(GeneExpression)[2]/3` variables).  In total `r length(id.all)` genes (or `r length(id.all)/dim(GeneExpression)[2]*100` %) had non-zero loadings. Figure \ref{slda-loadings} shows a plot of the loadings vs. gene index number. We could decide to only look at the genes with the largest (in absolute value) loadings and only consider those genes whose loadings are more than 2 standard deviations away from 0 (above the red line in figure \ref{slda-loadings}). These are the following `r length(id.all[which(abs(loadings) > 2*sd(loadings))])` genes: `r id.all[which(abs(loadings) > 2*sd(loadings))] %>% colnames(GeneExpression) %>% cat()`. Figure \ref{slda-scores} shows the discriminant scores from which we can see there is a substantial overlap between the 2 groups, suggesting that (sparse) LDA is not the best approach.
+A sparse LDA was performed to find out which genes contribute the most in discriminating between the two rejection status groups. 
+These genes could then be possible targets for further investigation. 
+Due to computational constraints (our system ran out of memory) we needed to split the data set in 3 parts (each part consisting of 282 observations on `r dim(GeneExpression)[2]/3` variables).  
+In total `r length(id.all)` genes (or `r length(id.all)/dim(GeneExpression)[2]*100` %) had non-zero loadings. 
+Figure \ref{slda-loadings} shows a plot of the loadings vs. gene index number. We could decide to only look at the genes with the largest (in absolute value) loadings and only consider those genes whose loadings are more than 2 standard deviations away from 0 (above the red line in figure \ref{slda-loadings}). 
+These are the following `r length(id.all[which(abs(loadings) > 2*sd(loadings))])` genes: `r id.all[which(abs(loadings) > 2*sd(loadings))] %>% colnames(GeneExpression) %>% cat()`. 
+Figure \ref{slda-scores} shows the discriminant scores from which we can see there is a substantial overlap between the 2 groups, suggesting that (sparse) LDA is not the best approach.
 
 ```{r slda-loadings}
 plot(id.all, loadings)
