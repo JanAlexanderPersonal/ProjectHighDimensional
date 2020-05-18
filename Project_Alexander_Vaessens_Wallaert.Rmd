@@ -518,7 +518,7 @@ plot(
   summary(coef(m))[-1, 3],
   cex = 1,
   pch = 3,
-  xlab = 'feature' ,
+  xlab = 'gene index' ,
   ylab = TeX(" $ \\hat{\\beta} $ ")
 )
 ```
