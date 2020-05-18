@@ -408,14 +408,20 @@ No distinction between the two groups can be made.
 
 ## t-SNE
 
-```{r, eval = FALSE}
+t-stochastic neighbor embedding is a dimension reduction technique for visualising high dimensional data with a focus on preserving the local structure. The resulting plot can be seen in figure \ref{tsne} and indicates again that a simple distinction between the two groups cannot be made. Yet, there seems to be roughly two groups that differ in heterogeneity: one largely heterogeneous group (upwards left in the plot) and one group that is less heterogeneous, though far from homogeneous (middle to downward right in the plot).
+
+```{r tsne, fig.cap="Two dimensional representation of the data through application of t-SNE"}
 gene_dist <- dist(GeneExpression_C)
 tsne_Z <- tsne(gene_dist, k = 2, perplexity = 45)
-tibble(as.data.frame(tsne_Z), reject = factor(RejectionStatus$Reject_Status)) %>%
+tibble(as.data.frame(tsne_Z), reject = factor(RejectionStatus$Reject_Status, labels = c("Accepted", "Rejected"))) %>%
   ggplot(aes(V1, V2, color = reject)) +
   geom_point() +
-  theme_classic()
+  theme_classic() +
+  labs(color = "Status",
+       x="",
+       y="")
 ```
+
 
 
 # Differentiating genes between kidney acceptance and rejection
