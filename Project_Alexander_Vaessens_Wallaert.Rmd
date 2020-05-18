@@ -114,7 +114,8 @@ ggplot(basics_long, aes(value, fill = reject)) +
   theme_classic() +
   labs(fill = "Status") + 
   facet_wrap("statistic", scales = "free" ) +
-  scale_fill_manual(values = c("#4DBBD5", "#E64B35"))
+  scale_fill_manual(values = c("#4DBBD5", "#E64B35")) +
+  labs(x="")
 
 ```
 
