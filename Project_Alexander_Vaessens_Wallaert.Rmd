@@ -104,6 +104,10 @@ df %>%
 # long format  
 basics %>%
   pivot_longer(-c(reject, gene), names_to = "statistic", values_to = "value") -> basics_long
+# fix order of statistics for plot facet
+basics_long %>%
+  mutate(statistic = factor(statistic, levels = c("mean", "sd", "min",
+                                                  "median", "iqr", "max"))) -> basics_long
 # plot
 ggplot(basics_long, aes(value, fill = reject)) +
   geom_density(alpha = 0.5) +
