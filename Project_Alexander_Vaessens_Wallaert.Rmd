@@ -301,6 +301,54 @@ plot(1:7, bss_wss, "b")
 knitr::include_graphics("hoeveel_sd.png")
 ```
 
+## Sparse LDA
+
+```{r sparse lda}
+id.all <- numeric()
+loadings <- numeric()
+for(i in 1:3){
+  
+  start <- 1 + (i-1)*18225
+  stop <- start + 18224
+  
+  gene_lda <- lda(GeneExpression_S[,start:stop], grouping = RejectionStatus$Reject_Status)
+  
+  V <- gene_lda$scaling
+  
+  Z <- GeneExpression_S[,start:stop] %*% V
+  
+  #plot(Z,col = 1+RejectionStatus$Reject_Status, pch=16, cex=1)
+  
+  #boxplot(Z~RejectionStatus$Reject_Status)
+  
+  lda_loadings <- cv.glmnet(GeneExpression_S[,start:stop], Z, alpha = 0.5, nfolds = 5)
+  
+  sparse_lda_loadings <- as.vector(coef(lda_loadings))
+  
+  #SLDA <- GeneExpression_S[,start:stop] %*% sparse_lda_loadings[-1]
+  
+  #boxplot(SLDA ~ RejectionStatus$Reject_Status)
+  
+  id.all <- append(id.all, which(sparse_lda_loadings[-1]!=0) + (i-1)*18225)
+  loadings <- append(loadings, sparse_lda_loadings[-1][sparse_lda_loadings[-1]!=0])
+}
+```
+
+A sparse LDA was performed to find out which genes contribute the most in discriminating between the two rejection status groups. These genes could then be possible targets for further investigation. In total `r length(id.all)` genes (or `r length(id.all)/dim(GeneExpression)[2]*100` %) had non-zero loadings. Figure \ref{slda-loadings} shows a plot of the loadings vs. gene index number. We could decide to only look at the genes with the largest (in absolute value) loadings and only consider those genes whose loadings are more than 2 standard deviations away from 0 (above the red line in figure \ref{slda-loadings}). These are the following `r length(id.all[which(abs(loadings) > 2*sd(loadings))])` genes: `r id.all[which(abs(loadings) > 2*sd(loadings))] %>% colnames(GeneExpression) %>% cat()`. Figure \ref{slda-scores} shows the discriminant scores from which we can see there is a substantial overlap between the 2 groups, suggesting that (sparse) LDA is not the best approach.
+
+```{r slda-loadings}
+plot(id.all, loadings)
+abline(h=0)
+abline(h=c(-2,2)*sd(loadings), col =2)
+```
+
+```{r slda-scores}
+Z <- GeneExpression_S[,id.all] %*% loadings
+
+plot(Z, col=RejectionStatus$Reject_Status+1, pch=16)
+```
+
+
 ## LLE (locally linear embedding)
 
 Locally linear embedding (Roweis and Saul, 2000) is a nonlinear dimension reduction method which finds a low-dimensional representation for each points' local neighbourhood by linearly approximating the data in each neighbourhood and returing these coordinates of lower dimension.
