@@ -82,11 +82,11 @@ Three research questions are defined:
 
 In the complete dataset, `r round(mean(RejectionStatus$Reject_Status) * 100) ` % of the transplanted kidnesy were rejected.
 
-## Simple plot of the raw data
+## Descriptives
 
-Before plotting dimension reduced representations of the data, a simple plot of the raw data is made. (insert Stevens code)
+Several descriptive statistics (mean, sd, median, iqr, min, and max) were calculated for every gene and kidney rejection status combination. This resulted in 2 (accepted vs. rejected) distributions of those statistics across genes. Note that these statistics were only calculated to perform a visual inspection. The resulted plot is presented in figure \ref{descriptives}. From this figure we can see there are, at least on this level, differences between groups. Most notable are the mean and median expression levels which tend to be more centered around the overall (across groups) mean expression levels in the _accepted_ group and more varying in the _rejected_ group. There seems to be more variablity in the measures of dispersion in the _rejected_ group. Finally there are minimal differences between the min/max expression level distributions, perhaps suggesting that gene expression levels in the _rejected_ group are slightly less extreme than in the _accepted_ group.
 
-```{r}
+```{r descriptives, fig.cap="Descriptive statistics across grenes and between groups. Note that the data were centered before calculating the statistics."}
 df <- tibble(patient = RejectionStatus$Patient_ID, 
              reject = ifelse(RejectionStatus$Reject_Status == 1, "Rejected", "Accepted"), 
              as.data.frame(GeneExpression_C)) %>%
@@ -113,6 +113,7 @@ ggplot(basics_long, aes(value, fill = reject)) +
   scale_fill_manual(values = c("#4DBBD5", "#E64B35"))
 
 ```
+
 
 ## Sparse principle components analysis
 
