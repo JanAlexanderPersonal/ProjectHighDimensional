@@ -1,0 +1,32 @@
+---
+title: "Scientific report for the project Transplant kidney rejection - Analysis of high dimensional data"
+author: 
+  - Jan Alexander^[jan.alexander@ugent.be]
+  - Annabel Vaessens^[annabel.vaessens@vub.be]
+  - Steven Wallaert^[steven.wallaert@ugent.be]
+date: "5/19/2020"
+output:
+  pdf_document: 
+    number_sections: yes
+    toc: no
+  html_document:
+    df_print: paged
+    toc: yes
+    toc_depth: '3'
+  word_document:
+    toc: yes
+    toc_depth: '3'
+header-includes: \usepackage{amsmath}
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Executive summary
+This research examines whether some genes are responsible for a patient's likelihood of rejecting a kidney after transplantation, for the  Gene Expression Omninibus (GEO) dataset. This dataset consists of gene expression levels of 54675 genes from 282 patients. The variability of the gene expression is ...
+From the 54675 genes, 18080 genes are identified as having a differential expression between the group of rejected and the group of accepted kidneys. The list of these genes can be found in ...(insert appendix)
+Kidney rejection can be predicted sufficiently from the gene expressions with 17 genes. The most inmportant genes in predicting rejection are in... (insert appendix). The prediction model (insert which model is best) perfoms the best and (say something about the performance)
+
+
+
+
