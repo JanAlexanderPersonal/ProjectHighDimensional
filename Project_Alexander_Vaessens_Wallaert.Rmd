@@ -34,7 +34,6 @@ library(pls)
 library(MASS)
 library(glmnet)
 library(ROCR)
-#library(multtest)
 #library(RDRToolbox)
 library(diffusionMap)
 library(car)
@@ -47,6 +46,10 @@ knitr::opts_chunk$set(echo = TRUE, fig.width=6, fig.height=4)
 set.seed(321)
 ```
 
+# Introduction
+
+The data is loaded as the raw dataset, the centered dataset and the standardized dataset.
+
 ```{r load data, eval=TRUE, include=TRUE}
 load('RejectionStatus.rda')
 load('X_GSE21374.rda')
@@ -56,9 +59,6 @@ dim(X_GSE21374)
 GeneExpression <- t(X_GSE21374)
 GeneExpression_C <- scale(t(X_GSE21374),scale = F) # centered
 GeneExpression_S <- scale(t(X_GSE21374),scale = T) # scaled
-# vraagje: zie cursus p 74, men geeft aan voor PCA dat
-# indien vars in zelfde eenheden zijn (in ons geval is dit zo), dan beter niet schalen.
-# Zouden we dan mss beter niet schalen voor PCA?
 
 GeneExpression <-
   GeneExpression[order(as.numeric(row.names(GeneExpression))), ]
@@ -68,21 +68,9 @@ RejectionStatus <-
 all.equal(row.names(GeneExpression), as.character(RejectionStatus$Patient_ID))
 ```
 
-# Introduction
-
-The data is loaded as presented in the assignment. The data is loaded as the raw dataset, the centered dataset and the standardized dataset. 
-
-Three research questions are defined:
-
-* How do the 54675 genes vary in terms of their gene expression levels? Is the variability associated with kidney rejection? (only to be answered in a data explorative manner).
-* Which genes are differentially expressed between the two kidney rejection groups? You must control the False Discovery Rate at 10%.
-* Can the kidney rejection be predicted from the gene expressions? What genes are most important in predicting the kidney transplant rejection? How well does the prediction model perform in terms of predicting rejection status?
-
 # Data exploration
 
-In the complete dataset, `r round(mean(RejectionStatus$Reject_Status) * 100) ` % of the transplanted kidnesy were rejected.
-
-We start of with descriptive statistics
+In the complete dataset, `r round(mean(RejectionStatus$Reject_Status) * 100) ` % of the transplanted kidneys were rejected. General descriptive statistics and methods for high dimensional data exploiration are used.
 
 ## Descriptives
 
@@ -121,195 +109,13 @@ ggplot(basics_long, aes(value, fill = reject)) +
 
 ```
 
-
-## Sparse principle components analysis
-
-```{r sparse pca}
-SPC.cv(GeneExpression_C)
-Gen_spc <- PMA::SPC(GeneExpression_C, K = 2, sumabsv = 5)
-Uk <- Gen_spc$u ; Dk <- diag(Gen_spc$d)
-Zk <- data.frame(X = Uk %*% Dk, Patient_ID = row.names(GeneExpression_C))
-Zk <- merge(Zk, RejectionStatus, by = 'Patient_ID') %>% 
-  mutate(Reject_Status = as.factor(Reject_Status))
-ggplot(data = Zk, aes(x = X.1, y = X.2, col = Reject_Status)) + 
-  geom_point()
-
-rm(Zk, Dk, Uk, X_GSE21374, Gen_spc)
-```
-
-Unfortunately, naive sparce principle component analysis does not seem to work well.
-
-## Multi-dimensional scaling:
-
-```{r mds}
-GeneExpression_C.svd <- svd(GeneExpression_C)
-
-k <- 3
-Uk <- GeneExpression_C.svd$u[,1:k]; Dk <- diag(GeneExpression_C.svd$d[1:k]) 
-Vk <-GeneExpression_C.svd$v[,1:k]
-Xk <- Uk %*% Dk %*% t(Vk)
-Zk <- Uk %*% Dk
-
-rownames(Zk) <- RejectionStatus[[2]]
-rownames(Vk) <- colnames(GeneExpression_C)
-ColnamesNull <- colnames(GeneExpression_C)
-ColnamesNull[]<- "" 
-
-plot(Zk[,1], Zk[,2], col=RejectionStatus$Reject_Status+1,pch=19)
-plot(Zk[,2], Zk[,3], col=RejectionStatus$Reject_Status+1,pch=19)
-```
-
-In the biplot of the two first dimensions of the svd, no distinction can be made between rejected and accepted kidneys.
-
-```{r plots mds}
-totvar <- sum(GeneExpression_C.svd$d^2)/(nrow(GeneExpression_C)-1)
-barplot(cumsum(GeneExpression_C.svd$d^2/(nrow(GeneExpression_C)-1)/totvar), names.arg=1:nrow(GeneExpression_C), ylab='cumulative prop. of total variance')
-```
-
-In the scree plot above it can be seen that the two first dimensions account for only 25% of the total variance in the dataset and the first three dimensions for 29%. To account for 80% of the total variance, 120 dimensions are needed.
-
-
-## Sparse LDA
-
-```{r sparse lda}
-id.all <- numeric()
-loadings <- numeric()
-for(i in 1:3){
-  
-  start <- 1 + (i-1)*18225
-  stop <- start + 18224
-  
-  gene_lda <- lda(GeneExpression_S[,start:stop], grouping = RejectionStatus$Reject_Status)
-  
-  V <- gene_lda$scaling
-  
-  Z <- GeneExpression_S[,start:stop] %*% V
-  
-  #plot(Z,col = 1+RejectionStatus$Reject_Status, pch=16, cex=1)
-  
-  #boxplot(Z~RejectionStatus$Reject_Status)
-  
-  lda_loadings <- cv.glmnet(GeneExpression_S[,start:stop], Z, alpha = 0.5, nfolds = 5)
-  
-  sparse_lda_loadings <- as.vector(coef(lda_loadings))
-  
-  #SLDA <- GeneExpression_S[,start:stop] %*% sparse_lda_loadings[-1]
-  
-  #boxplot(SLDA ~ RejectionStatus$Reject_Status)
-  
-  id.all <- append(id.all, which(sparse_lda_loadings[-1]!=0) + (i-1)*18225)
-  loadings <- append(loadings, sparse_lda_loadings[-1][sparse_lda_loadings[-1]!=0])
-}
-```
-
-A sparse LDA was performed to find out which genes contribute the most in discriminating between the two rejection status groups. 
-These genes could then be possible targets for further investigation. 
-Due to computational constraints (our system ran out of memory) we needed to split the data set in 3 parts (each part consisting of 282 observations on `r dim(GeneExpression)[2]/3` variables).  
-In total `r length(id.all)` genes (or `r length(id.all)/dim(GeneExpression)[2]*100` %) had non-zero loadings. 
-Figure \ref{slda-loadings} shows a plot of the loadings vs. gene index number. 
-We could decide to only look at the genes with the largest (in absolute value) loadings and only consider those genes whose loadings are more than 2 standard deviations away from 0 (above the red line in figure \ref{slda-loadings}). 
-These are the following `r length(id.all[which(abs(loadings) > 2*sd(loadings))])` genes: `r id.all[which(abs(loadings) > 2*sd(loadings))] %>% colnames(GeneExpression) %>% cat()`. 
-Figure \ref{slda-scores} shows the discriminant scores from which we can see there is a substantial overlap between the 2 groups, suggesting that (sparse) LDA is not the best approach.
-
-```{r slda-loadings}
-plot(id.all, loadings)
-abline(h=0)
-abline(h=c(-2,2)*sd(loadings), col =2)
-```
-
-```{r slda-scores}
-Z <- GeneExpression_S[,id.all] %*% loadings
-
-plot(Z, col=RejectionStatus$Reject_Status+1, pch=16)
-```
-
-
-## LLE (locally linear embedding)
-
-Locally linear embedding (Roweis and Saul, 2000) is a nonlinear dimension reduction method which finds a low-dimensional representation for each points' local neighbourhood by linearly approximating the data in each neighbourhood and returing these coordinates of lower dimension.
-
-(Value of k (number of neighbours) could be optimised)
-
-```{r, eval=FALSE}
-lle <- RDRToolbox::LLE(data=GeneExpression_C, dim=3, k=50)
-labels = c("first component", "second component", 'third component')
-plot(lle[,1],lle[,2],col=RejectionStatus$Reject_Status+1,pch=19)
-plot(lle[,2],lle[,3],col=RejectionStatus$Reject_Status+1,pch=19)
-# 3D interactive plot: (remove in final version)
-#plot <-RDRToolbox::plotDR(data=lle, labels=RejectionStatus[,2], axesLabels=labels)
-```
-But also with LLE, we cannot differentiate between the accepted and rejected kidneys.
-(more on LLE: https://www.stat.cmu.edu/~cshalizi/350/lectures/14/lecture-14.pdf)
-
-## ISOMAP
-
-ISOMAP is a a nonlinear dimension reduction technique presented by Tenenbaum, Silva and Langford in 2000. It preserves rather the global properties of the data. It uses  multidimensional scaling but then with incorporating the geodesic distances imposed by a weighted graph of the k neighbours of each point.
-
-```{r, eval=FALSE}
-IM <- RDRToolbox::Isomap(data=GeneExpression_C, dims=3, k=30)
-labelsIM <- c("first component", "second component", "third component")
-plot(IM$dim3[,1],IM$dim3[,2],col=RejectionStatus$Reject_Status+1,pch=19)
-plot(IM$dim3[,2],IM$dim3[,3],col=RejectionStatus$Reject_Status+1,pch=19)
-# 3d plot (remove in final version)
-# RDRToolbox::plotDR(data=IM$dim3, labels=RejectionStatus[,2], axesLabels=labelsIM)
-
-RDRToolbox::Isomap(data=GeneExpression_C, dims=1:10, k=30, plotResiduals=TRUE)
-```
-The parameter k is varied manually so that the maps are optimal. The value k could be optimised.
-With ISOMAP, it is also not possible to make a distinction between the group of accepted and rejected kidneys.
-
-## Sammon mapping
-
-Sammon mapping is also a nonlinear dimension reduction method. The cost function of the Sammon method is similar to that of MDS, except that it is adapted by dividing the squared error in the representation of each pairwise Euclidean distance by the original Euclidean distance in the high-dimensional space. In this way, local structure is better preserved than in MDS.
-
-```{r}
-sammon <- MASS::sammon(dist(GeneExpression_C), k=3, niter=100)
-plot(sammon$points[,1], sammon$points[,2], type = "p", col=RejectionStatus$Reject_Status+1, pch=19)
-plot(sammon$points[,2], sammon$points[,3], type = "p", col=RejectionStatus$Reject_Status+1, pch=19)
-```
-
-No distinction between the two groups can be made.
-
-## Diffusion maps
-
-Diffusion mapping is also a nonlinear dimension reduction method based on the eigenvectors and eigenvalues of the data. The global strucure of the data is mapped by integration of local similarities at different scales. It works with probablities of point x randomly walking to y, and is based on the heat diffusion equation.
-
-```{r}
-DiffusionMap <- diffusionMap::diffuse(dist(GeneExpression_C), maxdim=3)
-plot(DiffusionMap$X, type='p', col=RejectionStatus$Reject_Status+1, pch=19)
-```
-
-No distinction between the two groups can be made.
-
-## t-SNE
-
-t-stochastic neighbor embedding is a dimension reduction technique for visualising high dimensional data with a focus on preserving the local structure. The resulting plot can be seen in figure \ref{tsne} and indicates again that a simple distinction between the two groups cannot be made. Yet, there seems to be roughly two groups that differ in heterogeneity: one largely heterogeneous group (upwards left in the plot) and one group that is less heterogeneous, though far from homogeneous (middle to downward right in the plot).
-
-```{r tsne, fig.cap="Two dimensional representation of the data through application of t-SNE"}
-gene_dist <- dist(GeneExpression_C)
-tsne_Z <- tsne(gene_dist, k = 2, perplexity = 45)
-tibble(as.data.frame(tsne_Z), reject = factor(RejectionStatus$Reject_Status, labels = c("Accepted", "Rejected"))) %>%
-  ggplot(aes(V1, V2, color = reject)) +
-  geom_point() +
-  theme_classic() +
-  labs(color = "Status",
-       x="",
-       y="")
-```
-
-
+The several methods for exploration of high dimensional data are applied and they can be found in appendices \ref{sparse pca} to \ref{tsne}. No distinction between the accepted and rejected kidney groups could be made with sparse principal component analysis, mulit-dimensional scaling, sparce linear discriminant analysis, locally linear embedding, isomap, sammon mapping, diffusion maps nor t-SNE. This means that the main directions of the gene expression data do not correspond to the groups of the accepted/rejected kidneys.
 
 # Differentiating genes between kidney acceptance and rejection
 
-All hypothesis tests are done on the centered, not-standardized data. 
+The hypothesis tests are done on the raw data. First, a visual check whether the variables follow the normal distribution for both the accepted and rejected kidneys is done by checking several QQ plots. 
 
-First, a check of the variables follow a normal distribution for both the accepted and rejected kidneys. This is done by checking several QQ plots. 
-
-remark 1: noticed the method is not BH after all. Will fix this later an use Stevens suggestion
-remark 2: also test whether the variances of the two groups is unequal? (there will be some variables for sure where variance is unequal, therefore safer to do the Welch t-test rather than the student t-test
-
-
-```{r QQ plots for normality check, for several random genes}
+```{r QQ plots for normality check}
 
 Rejected=matrix(ncol=ncol(GeneExpression_C))
 for (i in seq(1,nrow(RejectionStatus),1)){
@@ -335,50 +141,15 @@ for (j in Selection) {
            main=paste('QQ plot for expression of ', colnames(GeneExpression_C)[j] , 
                       'in accepted kidneys'))
 }
-
 ```
 
-The QQ plots show that most genes follow the normal distribution, but there are also genes that do not.
+The QQ plots show that most genes follow the normal distribution, but there are also genes that do not. Nevertheless, a two-sided two-sample Welch t-test is done on the raw data to determine whether the two groups (rejected and accepted kidneys) can be differentiated based on the gene data, whether the mean  of the two groups is different. The Welch t-test is chosen because of unequal variances and difference in amount of samples between the two groups, though it seems that not all variables follow the normal distribution. The method of Benjamini and Hochberg (1995) for high-dimensional hypothesis testing is used.
 
-remark: maybe replace by a large-scale hypothesis test for normality later on and then decide for the Welch t-test or Wilcoxon Mann-Whitney (now both are in the code) 
-
-(remark on remark: I would rather not do that: On this scale you are guaranteed to have rejections. So in a way you already know the outcome (some are non normal). But if you would allow for a fraction to be non normal, then you have to decide how large that margin would be and then it is again 'guess work'. 
-answer to remark: Yes, that is true! And after the professors explaination, we don't really have to be bothered about checking assumptions. So: QQ plots and that's it)
-
-A two-sided two-sample Welch t-test is done on the centered data (not standardized) to determine whether the two groups (rejected and accepted kidneys) can be differentiated based on the gene data, whether the mean  of the two groups is different.The Welch t-test is done because of unequal variances/difference in amount of samples between the two groups.
-
-```{r two-sided two-sample Welch t-test}
-# duurt niet lang
-p.val <- numeric(ncol(GeneExpression_C))
-t.val <- numeric(ncol(GeneExpression_C))
-
-for(i in 1:length(p.val)){
-   t_object <- t.test(GeneExpression_C[RejectionStatus$Reject_Status == 0,i],
-         GeneExpression_C[RejectionStatus$Reject_Status == 1,i], 
-         var.equal = F)
-   
-  p.val[i] <- t_object$p.value
-  t.val[i] <- t_object$statistic
-}
-hist(p.val, main = "p-values 2 sided Welch t test")
-hist(t.val, main = "Test statistic Welch t test", breaks = 50)
-# duurt wel lang (+- 5 minuten):
-pval_bh <- BH(p.val, alpha = .1)
-hist(pval_bh$Adjusted.pvalues)
-table(p.val < 0.1)
-table(pval_bh$Adjusted.pvalues < 0.1)
-pval_bh$FDR
-```
-
-Interpretation: after exercise session 5
-
-Another way is to do the BH95 method manually:
-
-```{r tests as in class}
+```{r welch t-test}
 AllTestResults <-matrix(,nrow=ncol(GeneExpression),  
                         ncol=4 ) 
-rownames(AllTestResults)=colnames(GeneExpression[1:54675])
-colnames(AllTestResults)=c('p-value', 'test-statistic', 'degreeFreedom', 'adjusted p-value')
+rownames(AllTestResults)=colnames(GeneExpression[,1:54675])
+colnames(AllTestResults)=c('p-value', 'test-statistic', 'degreeFreedom')
 
 for (i in seq(1,54675)){
   test=t.test(GeneExpression[,i]~RejectionStatus[,2])
@@ -386,7 +157,6 @@ for (i in seq(1,54675)){
   AllTestResults[i,'test-statistic'] <- test$statistic
   AllTestResults[i,'degreeFreedom'] <- test$parameter
 }
-
 ```
 
 Histogram of the p-values
@@ -395,11 +165,9 @@ Histogram of the p-values
 hist(AllTestResults[,'p-value'], main='Histogram of the p-values', xlab='p-value')
 ```
 
-This histogram has not the uniform distribution, it has many small p-values. This means that we can reject the null hypotheses for many variables.
+This histogram does not follow the uniform distribution, it has many small p-values. This indicates that for many variables, the null hypothesis can probably be rejected. Next, theBH95 method is done and the FDR is controlled at 10%.
 
-Control at FDR 10%
-
-```{r FDR control}
+```{r BH95}
 FDRControl<- AllTestResults[order(AllTestResults[,'p-value']),]
 Vec <- c(seq(1,54675,by=1)*0.10/54675)
 FDRControl <- cbind(FDRControl, Vec)
@@ -418,44 +186,34 @@ rownames(Discoveries_FDR) <- rownames(FDRControl)
 table(Discoveries_FDR) 
 ```
 
-We have 18080 accepted hypotheses and 36595 rejected null-hypothyses or discoveries. 
-Calculation and plotting of the z-scores and comparison to the normal distribution.
+There are 18080 accepted null hypotheses and 36595 rejected null-hypothyses or discoveries (see `r Discoveries_FDR`). For 36595 of these genes, we conclude that the gene expression differs between the accepted and rejected kidneys. From these discoveries, it is expected to have around 3660 false discoveries (FDR of 10%).
 
-```{r lfdr and z-scores}
+Next, the z-scores are plotted and compared to the local false discovery rate.
+
+```{r z-scores}
 z_scores <- c()
 for (i in seq(1,54675,1)){
   z_score=qnorm(pt(AllTestResults[i,'test-statistic'],df=AllTestResults[i,'degreeFreedom']))
   z_scores <- cbind(z_scores, z_score)
 }
-
-hist(z_scores,breaks=120,prob=T,ylim=c(0,0.39))
-curve(dnorm(x, mean=0, sd=1),
-      col="darkblue", lwd=2, add=TRUE, yaxt="n")
 ```
-
-From this plot we can conclude that there are most nonnulls can be discriminated well
-
 ```{r lfdr}
 fdr <- locfdr(z_scores,plot=0,nulltype=0)$fdr
+```
+```{r plot z-scores vs lfdr}
 hist(z_scores,breaks=120,prob=T,ylim=c(0,0.39), ylab=NULL, axes=FALSE, main='lfdr and z-scores')
 par(new=TRUE)
 plot(z_scores[order(z_scores)],fdr[order(z_scores)],
      type="l",lwd=2,col="red",xlab="z-scores",lty=2,
      ylab="fdr")
+abline(a=0.1, b=0, col='blue')
 ```
 
-from this plot we can conclude that we can obtain a small fdr for very small (negative z-scores, smaller than -3) and for very large z-scores (larger than 3).
-
-
-A Wilcoxon Mann-Whitney test is done on the centered data, to determine whether the two groups follow the same distribution.
-
-```{r Wilcoxon Mann-Whitney test}
-
-```
-
-Interpretation: after exercise session 5
+From the figure \ref{plot z-scores vs lfdr} can be concluded that a fdr < 0.1 can be obtained for negative z-scores, smaller than -2.5 and for very large z-scores, larger than 2.5. For these z-scores, it is more likely that when rejecting the null hypotheses, a true discovery is made.
 
 # Prediction of kidney transplant rejection
+
+The dataset is split into a training and test dataset.
 
 ```{r train test split}
 ind_train <-
@@ -624,3 +382,187 @@ plot(perf_mod)
 ```
 
 AUC is `r performance(pred_mod, "auc")@y.values`.
+
+# Conclusions
+
+
+# Appendices
+
+## Exploration methods for high dimensional data
+
+### Sparse principle components analysis
+
+```{r sparse pca}
+SPC.cv(GeneExpression_C)
+Gen_spc <- PMA::SPC(GeneExpression_C, K = 2, sumabsv = 5)
+Uk <- Gen_spc$u ; Dk <- diag(Gen_spc$d)
+Zk <- data.frame(X = Uk %*% Dk, Patient_ID = row.names(GeneExpression_C))
+Zk <- merge(Zk, RejectionStatus, by = 'Patient_ID') %>% 
+  mutate(Reject_Status = as.factor(Reject_Status))
+ggplot(data = Zk, aes(x = X.1, y = X.2, col = Reject_Status)) + 
+  geom_point()
+
+rm(Zk, Dk, Uk, X_GSE21374, Gen_spc)
+```
+
+Unfortunately, naive sparce principle component analysis cannot be used to make a distinction between the accepted and rejected kidneys.
+
+### Multi-dimensional scaling:
+
+```{r mds}
+GeneExpression_C.svd <- svd(GeneExpression_C)
+
+k <- 3
+Uk <- GeneExpression_C.svd$u[,1:k]; Dk <- diag(GeneExpression_C.svd$d[1:k]) 
+Vk <-GeneExpression_C.svd$v[,1:k]
+Xk <- Uk %*% Dk %*% t(Vk)
+Zk <- Uk %*% Dk
+
+rownames(Zk) <- RejectionStatus[[2]]
+rownames(Vk) <- colnames(GeneExpression_C)
+ColnamesNull <- colnames(GeneExpression_C)
+ColnamesNull[]<- "" 
+
+plot(Zk[,1], Zk[,2], col=RejectionStatus$Reject_Status+1,pch=19)
+plot(Zk[,2], Zk[,3], col=RejectionStatus$Reject_Status+1,pch=19)
+```
+
+In the biplots of the three first dimensions of the svd (\ref{mds}), no distinction can be made between rejected and accepted kidneys.
+
+```{r plots mds}
+totvar <- sum(GeneExpression_C.svd$d^2)/(nrow(GeneExpression_C)-1)
+barplot(cumsum(GeneExpression_C.svd$d^2/(nrow(GeneExpression_C)-1)/totvar), names.arg=1:nrow(GeneExpression_C), ylab='cumulative prop. of total variance')
+```
+
+In the scree plot \ref{plots mds} it can be seen that the two first dimensions account for only 25% of the total variance in the dataset and the first three dimensions for 29%. To account for 80% of the total variance, 120 dimensions are needed.
+
+### Sparse LDA
+
+```{r sparse lda}
+id.all <- numeric()
+loadings <- numeric()
+for(i in 1:3){
+  
+  start <- 1 + (i-1)*18225
+  stop <- start + 18224
+  
+  gene_lda <- lda(GeneExpression_S[,start:stop], grouping = RejectionStatus$Reject_Status)
+  
+  V <- gene_lda$scaling
+  
+  Z <- GeneExpression_S[,start:stop] %*% V
+  
+  #plot(Z,col = 1+RejectionStatus$Reject_Status, pch=16, cex=1)
+  
+  #boxplot(Z~RejectionStatus$Reject_Status)
+  
+  lda_loadings <- cv.glmnet(GeneExpression_S[,start:stop], Z, alpha = 0.5, nfolds = 5)
+  
+  sparse_lda_loadings <- as.vector(coef(lda_loadings))
+  
+  #SLDA <- GeneExpression_S[,start:stop] %*% sparse_lda_loadings[-1]
+  
+  #boxplot(SLDA ~ RejectionStatus$Reject_Status)
+  
+  id.all <- append(id.all, which(sparse_lda_loadings[-1]!=0) + (i-1)*18225)
+  loadings <- append(loadings, sparse_lda_loadings[-1][sparse_lda_loadings[-1]!=0])
+}
+```
+
+A sparse LDA was performed to find out which genes contribute the most in discriminating between the two rejection status groups. 
+These genes could then be possible targets for further investigation. 
+Due to computational constraints (our system ran out of memory) we needed to split the data set in 3 parts (each part consisting of 282 observations on `r dim(GeneExpression)[2]/3` variables).  
+In total `r length(id.all)` genes (or `r length(id.all)/dim(GeneExpression)[2]*100` %) had non-zero loadings. 
+Figure \ref{slda-loadings} shows a plot of the loadings vs. gene index number. 
+We could decide to only look at the genes with the largest (in absolute value) loadings and only consider those genes whose loadings are more than 2 standard deviations away from 0 (above the red line in figure \ref{slda-loadings}). 
+These are the following `r length(id.all[which(abs(loadings) > 2*sd(loadings))])` genes: `r id.all[which(abs(loadings) > 2*sd(loadings))] %>% colnames(GeneExpression) %>% cat()`. 
+Figure \ref{slda-scores} shows the discriminant scores from which we can see there is a substantial overlap between the 2 groups, suggesting that (sparse) LDA is not the best approach.
+
+```{r slda-loadings}
+plot(id.all, loadings)
+abline(h=0)
+abline(h=c(-2,2)*sd(loadings), col =2)
+```
+
+```{r slda-scores}
+Z <- GeneExpression_S[,id.all] %*% loadings
+
+plot(Z, col=RejectionStatus$Reject_Status+1, pch=16)
+```
+
+### LLE (locally linear embedding)
+
+Locally linear embedding is a nonlinear dimension reduction method which finds a low-dimensional representation for each points' local neighbourhood by linearly approximating the data in each neighbourhood and returing these coordinates of lower dimension (Roweis and Saul, 2000).
+
+```{r lle, eval=FALSE}
+lle <- RDRToolbox::LLE(data=GeneExpression_C, dim=3, k=50)
+labels = c("first component", "second component", 'third component')
+plot(lle[,1],lle[,2],col=RejectionStatus$Reject_Status+1,pch=19)
+plot(lle[,2],lle[,3],col=RejectionStatus$Reject_Status+1,pch=19)
+```
+
+From figures \ref{lle} can be seen that no distinction between the accepted and rejected kidneys can be made.
+
+### ISOMAP
+
+ISOMAP is a a nonlinear dimension reduction technique presented by Tenenbaum, Silva and Langford in 2000. It preserves rather the global properties of the data. It uses  multidimensional scaling but then with incorporating the geodesic distances imposed by a weighted graph of the k neighbours of each point.
+
+```{r ISOMAP, eval=FALSE}
+IM <- RDRToolbox::Isomap(data=GeneExpression_C, dims=3, k=30)
+labelsIM <- c("first component", "second component", "third component")
+plot(IM$dim3[,1],IM$dim3[,2],col=RejectionStatus$Reject_Status+1,pch=19)
+plot(IM$dim3[,2],IM$dim3[,3],col=RejectionStatus$Reject_Status+1,pch=19)
+# 3d plot (remove in final version)
+# RDRToolbox::plotDR(data=IM$dim3, labels=RejectionStatus[,2], axesLabels=labelsIM)
+
+RDRToolbox::Isomap(data=GeneExpression_C, dims=1:10, k=30, plotResiduals=TRUE)
+```
+
+The parameter k is varied manually so that the maps are optimal. From figure \ref{ISOMAP} can be seen that with ISOMAP, it is also not possible to make a distinction between the group of accepted and rejected kidneys.
+
+
+## Sammon mapping
+
+Sammon mapping is also a nonlinear dimension reduction method. The cost function of the Sammon method is similar to that of MDS, except that it is adapted by dividing the squared error in the representation of each pairwise Euclidean distance by the original Euclidean distance in the high-dimensional space. In this way, local structure is better preserved than in MDS. The result is in figures \ref{sammon}: no distinction can be made between the two groups.
+
+```{r sammon}
+sammon <- MASS::sammon(dist(GeneExpression_C), k=3, niter=100)
+plot(sammon$points[,1], sammon$points[,2], type = "p", col=RejectionStatus$Reject_Status+1, pch=19)
+plot(sammon$points[,2], sammon$points[,3], type = "p", col=RejectionStatus$Reject_Status+1, pch=19)
+```
+
+### Diffusion maps
+
+Diffusion mapping is also a nonlinear dimension reduction method based on the eigenvectors and eigenvalues of the data. The global strucure of the data is mapped by integration of local similarities at different scales. It works with probablities of point x randomly walking to y, and is based on the heat diffusion equation.
+
+```{r diffusion}
+DiffusionMap <- diffusionMap::diffuse(dist(GeneExpression_C), maxdim=3)
+plot(DiffusionMap$X, type='p', col=RejectionStatus$Reject_Status+1, pch=19)
+```
+
+From figure \ref{diffusion}, no distinction between the two groups can be made with diffusion maps.
+
+### t-SNE
+
+t-stochastic neighbor embedding is a dimension reduction technique for visualising high dimensional data with a focus on preserving the local structure. The resulting plot can be seen in figure \ref{tsne} and indicates again that a simple distinction between the two groups cannot be made. Yet, there seems to be roughly two groups that differ in heterogeneity: one largely heterogeneous group (upwards left in the plot) and one group that is less heterogeneous, though far from homogeneous (middle to downward right in the plot).
+
+```{r tsne, fig.cap="Two dimensional representation of the data through application of t-SNE"}
+gene_dist <- dist(GeneExpression_C)
+tsne_Z <- tsne(gene_dist, k = 2, perplexity = 45)
+tibble(as.data.frame(tsne_Z), reject = factor(RejectionStatus$Reject_Status, labels = c("Accepted", "Rejected"))) %>%
+  ggplot(aes(V1, V2, color = reject)) +
+  geom_point() +
+  theme_classic() +
+  labs(color = "Status",
+       x="",
+       y="")
+```
+
+# References
+
+Benjamini Y and Hochberg Y, 1995. Controlling The False Discovery Rate - A Practical And Powerful Approach To Multiple Testing. Journal of the Royal Statistical Society. Series B: Methodological 57, 289-300.
+
+Roweis ST and Saul LK, 2000. Nonlinear dimensionality reduction by locally linear embedding. Science, 290, 2323-2326.
+
+Tenenbaum JB, De Silva V and Langford JC, 2000. A global geometric framework for nonlinear dimensionality reduction. Science, 290, 2319-2323.
+
