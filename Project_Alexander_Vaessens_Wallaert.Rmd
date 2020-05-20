@@ -45,11 +45,11 @@ knitr::opts_chunk$set(echo = TRUE, fig.width=6, fig.height=4)
 set.seed(321)
 ```
 
-# Introduction
+# Technical Report {-}
 
-The data is loaded as the raw dataset, the centered dataset and the standardized dataset.
+Readers who are primarily interested in the overall conclusions without too much details on the methods can easily consult the **summarised results**, which accompanies this document. This is the technical report containing a more detailed discussion of the used methods and obtained results.
 
-```{r load data, eval=TRUE, include=TRUE}
+```{r load data, include=FALSE}
 load('RejectionStatus.rda')
 load('X_GSE21374.rda')
 dim(RejectionStatus)
@@ -67,15 +67,19 @@ RejectionStatus <-
 all.equal(row.names(GeneExpression), as.character(RejectionStatus$Patient_ID))
 ```
 
-# Data exploration
+# Exploratory Analysis
 
-In the complete dataset, `r round(mean(RejectionStatus$Reject_Status) * 100) ` % of the transplanted kidneys were rejected. General descriptive statistics and methods for high dimensional data exploiration are used.
+In this section general descriptive statistics are given and multiple methods for high dimensional data exploration are used.
 
-## Descriptives
+## Basic descriptive summary
 
-Several descriptive statistics (mean, sd, median, iqr, min, and max) were calculated for every gene and kidney rejection status combination. This resulted in 2 (accepted vs. rejected) distributions of those statistics across genes. Note that these statistics were only calculated to perform a visual inspection. The resulted plot is presented in figure \ref{descriptives}. From this figure we can see there are, at least on this level, differences between groups. Most notable are the mean and median expression levels which tend to be more centered around the overall (across groups) mean expression levels in the _accepted_ group and more varying in the _rejected_ group. There seems to be more variablity in the measures of dispersion in the _rejected_ group. Finally there are minimal differences between the min/max expression level distributions, perhaps suggesting that gene expression levels in the _rejected_ group are slightly less extreme than in the _accepted_ group.
+In the complete dataset, `r round(mean(RejectionStatus$Reject_Status) * 100) `% of the transplanted kidneys were rejected. 
 
-```{r descriptives, fig.cap="Descriptive statistics across grenes and between groups. Note that the data were centered before calculating the statistics."}
+Several descriptive statistics (mean, sd, median, iqr, min, and max) were calculated for every gene and kidney rejection status combination. This resulted in 2 (accepted vs. rejected) distributions of every statistic across genes. Note that these statistics were only calculated to perform a visual inspection.
+
+The resulted plot is presented in figure \ref{descriptives}. From this figure we can see there are, at least on this level, differences between groups. Most notable are the mean and median expression levels which tend to be closer to the  overall mean (across groups) expression levels in the _accepted_ group and more varying in the _rejected_ group. There seems to be more variablity in the measures of dispersion in the _rejected_ group. Finally there are minimal differences between the min/max expression level distributions, perhaps suggesting that gene expression levels in the _rejected_ group are slightly less extreme than in the _accepted_ group.
+
+```{r descriptives, echo=FALSE, fig.cap="Descriptive statistics across grenes and between groups. Note that the data were centered before calculating the statistics."}
 df <- tibble(patient = RejectionStatus$Patient_ID, 
              reject = ifelse(RejectionStatus$Reject_Status == 1, "Rejected", "Accepted"), 
              as.data.frame(GeneExpression_C)) %>%
@@ -92,11 +96,14 @@ df %>%
             iqr = IQR(expression)) -> basics
 # long format  
 basics %>%
-  pivot_longer(-c(reject, gene), names_to = "statistic", values_to = "value") -> basics_long
+  pivot_longer(-c(reject, gene), 
+               names_to = "statistic", 
+               values_to = "value") -> basics_long
 # fix order of statistics for plot facet
 basics_long %>%
-  mutate(statistic = factor(statistic, levels = c("mean", "sd", "min",
-                                                  "median", "iqr", "max"))) -> basics_long
+  mutate(statistic = factor(statistic, 
+                            levels = c("mean", "sd", "min",
+                                       "median", "iqr", "max"))) -> basics_long
 # plot
 ggplot(basics_long, aes(value, fill = reject)) +
   geom_density(alpha = 0.5) +
@@ -105,10 +112,15 @@ ggplot(basics_long, aes(value, fill = reject)) +
   facet_wrap("statistic", scales = "free" ) +
   scale_fill_manual(values = c("#4DBBD5", "#E64B35")) +
   labs(x="")
-
 ```
 
-The several methods for exploration of high dimensional data are applied and they can be found in appendices \ref{sparse pca} to \ref{tsne}. No distinction between the accepted and rejected kidney groups could be made with sparse principal component analysis, mulit-dimensional scaling, sparce linear discriminant analysis, locally linear embedding, isomap, sammon mapping, diffusion maps nor t-SNE. This means that the main directions of the gene expression data do not correspond to the groups of the accepted/rejected kidneys.
+## Advanced exploratory analyses
+
+Multiple methods for exploration and visualisation of high dimensional data were applied (sparse PCA, MDS, sparse LDA, LLE, ISOMAP, Sammon Mapping, Diffusion maps, and t-SNE), yet without clear results. The main conclusion are reported here, while details of these results can be found in appendices \ref{sparse pca} to \ref{tsne}. 
+
+No articulate distinction between the rejection status groups could be made with any of the used methods. This suggests that the main directions of the gene expression data do not correspond to the groups of the accepted/rejected kidneys.
+
+The results of the sparse LDA gave the best results in the sense that it was possible to make a distinction between groups, but not without a substantial overlap. 
 
 # Differentiating genes between kidney acceptance and rejection
 
