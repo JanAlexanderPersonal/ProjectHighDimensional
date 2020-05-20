@@ -169,6 +169,8 @@ This histogram does not follow the uniform distribution, it has many small p-val
 
 ```{r}
 adjusted <- p.adjust(AllTestResults[,"p-value"], method = "BH")
+
+table(adjusted < 0.1)
 ```
 
 
