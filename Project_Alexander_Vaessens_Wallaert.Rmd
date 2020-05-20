@@ -40,7 +40,7 @@ library(car)
 library(tsne)
 library(locfdr)
 
-knitr::opts_chunk$set(echo = TRUE, fig.width=6, fig.height=4)
+knitr::opts_chunk$set(echo = FALSE, fig.width=6, fig.height=4)
 
 set.seed(321)
 ```
