@@ -170,11 +170,11 @@ This histogram does not follow the uniform distribution, it has many small p-val
 ```{r}
 adjusted <- p.adjust(AllTestResults[,"p-value"], method = "BH")
 
-table(adjusted < 0.1)
+rejections <- sum(adjusted < 0.1)
 ```
 
 
-There are 18080 accepted null hypotheses and 36595 rejected null-hypothyses or discoveries (see ...). For 36595 of these genes, we conclude that the gene expression differs between the accepted and rejected kidneys. From these discoveries, it is expected to have around 3660 false discoveries (FDR of 10%).
+There were `r rejections` rejected null hypotheses. As such we conclude that the gene expression differs between the accepted and rejected kidneys for those `r rejections` genes. As the FDR is controlled at 10%, it is expected to have around `r round(rejections*.1,0)` false discoveries.
 
 Next, the z-scores are plotted and compared to the local false discovery rate.
 
