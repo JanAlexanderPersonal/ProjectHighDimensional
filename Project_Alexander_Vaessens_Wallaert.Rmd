@@ -122,39 +122,21 @@ No articulate distinction between the rejection status groups could be made with
 
 The results of the sparse LDA gave the best results in the sense that it was possible to make a distinction between groups, but not without a substantial overlap. 
 
+
+
+## Conclusions Exploratory Analysis
+
+
+
 # Differentiating genes between kidney acceptance and rejection
 
-The hypothesis tests are done on the raw data. First, a visual check whether the variables follow the normal distribution for both the accepted and rejected kidneys is done by checking several QQ plots. 
+The hypothesis tests were performed on the uncentered data. Before testing, a visual inspection of several QQ-plots was done to verify whether the variables follow a normal distribution for both the accepted and rejected groups. The interested reader can find a few of these QQ-plots in the appendix "QQ-plots".
 
-```{r QQ plots for normality check}
+These QQ-plots showed that some genes were normally distributed, but also that some genes are not. Nevertheless, two-sided two-sample Welch t-tests were done on the uncentered data to determine whether the two groups can be differentiated based on the gene expression level for every gene. The Welch t-test was chosen because of unequal variances and difference in sample size between the two groups, even though it seems that not all genes were normally distributed. 
 
-Rejected=matrix(ncol=ncol(GeneExpression_C))
-for (i in seq(1,nrow(RejectionStatus),1)){
-  if (RejectionStatus[[i,2]]==0){
-    Rejected <- rbind(Rejected, GeneExpression_C[i,])
-  }
-}
+The null hypotheses are $\mu_{rejected, i} = \mu_{accepted,i}$ with $i = \{1,...,54675\}$, and the alternative hypotheses are $\mu_{rejected, i}\neq \mu_{accepted,i}$ with $i = \{1,...,54675\}$.
 
-Accepted=matrix(ncol=ncol(GeneExpression_C))
-for (i in seq(1,nrow(RejectionStatus),1)){
-  if (RejectionStatus[[i,2]]==1){
-    Accepted <- rbind(Accepted, GeneExpression_C[i,])
-  }
-}
-
-Selection <- sample(seq(1,ncol(GeneExpression_C)), 15)
-
-for (j in Selection) {
-    qqPlot(Rejected[,j], pch = 16, 
-           main=paste('QQ plot for expression of ', colnames(GeneExpression_C)[j] , 
-                      'in rejected kidneys'))
-    qqPlot(Accepted[,j], pch = 16, 
-           main=paste('QQ plot for expression of ', colnames(GeneExpression_C)[j] , 
-                      'in accepted kidneys'))
-}
-```
-
-The QQ plots show that most genes follow the normal distribution, but there are also genes that do not. Nevertheless, a two-sided two-sample Welch t-test is done on the raw data to determine whether the two groups (rejected and accepted kidneys) can be differentiated based on the gene data, whether the mean  of the two groups is different. The Welch t-test is chosen because of unequal variances and difference in amount of samples between the two groups, though it seems that not all variables follow the normal distribution. The method of Benjamini and Hochberg (1995) for high-dimensional hypothesis testing is used.
+To account for the multiple testing problem at this scale (54675 simultaneous hypothesis tests), the FDR is controlled at 0.10 through application of the method of Benjamini and Hochberg (1995).
 
 
 ```{r welch t-test}
@@ -516,7 +498,7 @@ RDRToolbox::Isomap(data=GeneExpression_C, dims=1:10, k=30, plotResiduals=TRUE)
 The parameter k is varied manually so that the maps are optimal. From figure \ref{ISOMAP} can be seen that with ISOMAP, it is also not possible to make a distinction between the group of accepted and rejected kidneys.
 
 
-## Sammon mapping
+### Sammon mapping
 
 Sammon mapping is also a nonlinear dimension reduction method. The cost function of the Sammon method is similar to that of MDS, except that it is adapted by dividing the squared error in the representation of each pairwise Euclidean distance by the original Euclidean distance in the high-dimensional space. In this way, local structure is better preserved than in MDS. The result is in figures \ref{sammon}: no distinction can be made between the two groups.
 
@@ -551,6 +533,37 @@ tibble(as.data.frame(tsne_Z), reject = factor(RejectionStatus$Reject_Status, lab
   labs(color = "Status",
        x="",
        y="")
+```
+
+## QQ-plots
+
+
+```{r QQ plots for normality check}
+
+Rejected <- matrix(ncol=ncol(GeneExpression_C))
+for (i in seq(1,nrow(RejectionStatus), 1)){
+  if (RejectionStatus[[i,2]]==0){
+    Rejected <- rbind(Rejected, GeneExpression_C[i,])
+  }
+}
+
+Accepted <- matrix(ncol=ncol(GeneExpression_C))
+for (i in seq(1,nrow(RejectionStatus),1)){
+  if (RejectionStatus[[i,2]]==1){
+    Accepted <- rbind(Accepted, GeneExpression_C[i,])
+  }
+}
+
+Selection <- sample(seq(1, ncol(GeneExpression_C)), 3)
+
+for (j in Selection) {
+    qqPlot(Rejected[,j], pch = 16, 
+           main=paste('QQ plot for expression of ', colnames(GeneExpression_C)[j] , 
+                      'in rejected kidneys'))
+    qqPlot(Accepted[,j], pch = 16, 
+           main=paste('QQ plot for expression of ', colnames(GeneExpression_C)[j] , 
+                      'in accepted kidneys'))
+}
 ```
 
 # References
