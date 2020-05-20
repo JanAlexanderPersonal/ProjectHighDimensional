@@ -34,10 +34,9 @@ library(pls)
 library(MASS)
 library(glmnet)
 library(ROCR)
-#library(RDRToolbox)
+library(RDRToolbox)
 library(diffusionMap)
 library(car)
-library(sgof)
 library(tsne)
 library(locfdr)
 
@@ -145,14 +144,15 @@ for (j in Selection) {
 
 The QQ plots show that most genes follow the normal distribution, but there are also genes that do not. Nevertheless, a two-sided two-sample Welch t-test is done on the raw data to determine whether the two groups (rejected and accepted kidneys) can be differentiated based on the gene data, whether the mean  of the two groups is different. The Welch t-test is chosen because of unequal variances and difference in amount of samples between the two groups, though it seems that not all variables follow the normal distribution. The method of Benjamini and Hochberg (1995) for high-dimensional hypothesis testing is used.
 
+
 ```{r welch t-test}
-AllTestResults <-matrix(,nrow=ncol(GeneExpression),  
-                        ncol=4 ) 
-rownames(AllTestResults)=colnames(GeneExpression[,1:54675])
-colnames(AllTestResults)=c('p-value', 'test-statistic', 'degreeFreedom')
+AllTestResults <- matrix(nrow=ncol(GeneExpression),  
+                        ncol=3 ) 
+rownames(AllTestResults) <- colnames(GeneExpression[,1:54675])
+colnames(AllTestResults) <- c('p-value', 'test-statistic', 'degreeFreedom')
 
 for (i in seq(1,54675)){
-  test=t.test(GeneExpression[,i]~RejectionStatus[,2])
+  test <- t.test(GeneExpression[,i]~RejectionStatus[,2])
   AllTestResults[i,'p-value'] <- test$p.value
   AllTestResults[i,'test-statistic'] <- test$statistic
   AllTestResults[i,'degreeFreedom'] <- test$parameter
@@ -167,40 +167,19 @@ hist(AllTestResults[,'p-value'], main='Histogram of the p-values', xlab='p-value
 
 This histogram does not follow the uniform distribution, it has many small p-values. This indicates that for many variables, the null hypothesis can probably be rejected. Next, theBH95 method is done and the FDR is controlled at 10%.
 
-```{r BH95}
-FDRControl<- AllTestResults[order(AllTestResults[,'p-value']),]
-Vec <- c(seq(1,54675,by=1)*0.10/54675)
-FDRControl <- cbind(FDRControl, Vec)
-Discoveries_FDR <- c()
-for (i in seq(1,54675))
-{
-  if (FDRControl[i,'p-value'] < FDRControl[i,'Vec'])
-  {
-    Discoveries_FDR <- rbind(Discoveries_FDR, c(TRUE))}
-  if (FDRControl[i,'p-value'] > FDRControl[i,'Vec'])
-  {
-    Discoveries_FDR <- rbind(Discoveries_FDR, c(FALSE))}
-}
-
-rownames(Discoveries_FDR) <- rownames(FDRControl) 
-table(Discoveries_FDR) 
+```{r}
+adjusted <- p.adjust(AllTestResults[,"p-value"], method = "BH")
 ```
 
-There are 18080 accepted null hypotheses and 36595 rejected null-hypothyses or discoveries (see `r Discoveries_FDR`). For 36595 of these genes, we conclude that the gene expression differs between the accepted and rejected kidneys. From these discoveries, it is expected to have around 3660 false discoveries (FDR of 10%).
+
+There are 18080 accepted null hypotheses and 36595 rejected null-hypothyses or discoveries (see ...). For 36595 of these genes, we conclude that the gene expression differs between the accepted and rejected kidneys. From these discoveries, it is expected to have around 3660 false discoveries (FDR of 10%).
 
 Next, the z-scores are plotted and compared to the local false discovery rate.
 
 ```{r z-scores}
-z_scores <- c()
-for (i in seq(1,54675,1)){
-  z_score=qnorm(pt(AllTestResults[i,'test-statistic'],df=AllTestResults[i,'degreeFreedom']))
-  z_scores <- cbind(z_scores, z_score)
-}
-```
-```{r lfdr}
+z_scores <- qnorm(pt(AllTestResults[,'test-statistic'],df=AllTestResults[i,'degreeFreedom']))
 fdr <- locfdr(z_scores,plot=0,nulltype=0)$fdr
-```
-```{r plot z-scores vs lfdr}
+
 hist(z_scores,breaks=120,prob=T,ylim=c(0,0.39), ylab=NULL, axes=FALSE, main='lfdr and z-scores')
 par(new=TRUE)
 plot(z_scores[order(z_scores)],fdr[order(z_scores)],
@@ -208,6 +187,8 @@ plot(z_scores[order(z_scores)],fdr[order(z_scores)],
      ylab="fdr")
 abline(a=0.1, b=0, col='blue')
 ```
+
+
 
 From the figure \ref{plot z-scores vs lfdr} can be concluded that a fdr < 0.1 can be obtained for negative z-scores, smaller than -2.5 and for very large z-scores, larger than 2.5. For these z-scores, it is more likely that when rejecting the null hypotheses, a true discovery is made.
 
