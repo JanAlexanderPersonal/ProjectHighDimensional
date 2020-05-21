@@ -7,11 +7,12 @@ author:
   - Jan Alexander^[jan.alexander@ugent.be]
   - Annabel Vaessens^[annabel.vaessens@vub.be]
   - Steven Wallaert^[steven.wallaert@ugent.be]
-date: "8/4/2020"
+date: "`r format(Sys.Date(), '%d %m %Y')`"
 output:
   pdf_document: 
     number_sections: yes
     toc: yes
+    fig_caption: true
   html_document:
     df_print: paged
     toc: yes
@@ -19,8 +20,9 @@ output:
   word_document:
     toc: yes
     toc_depth: '3'
-header-includes: \usepackage{amsmath}
+header-includes: \usepackage{amsmath} \renewcommand{\abstractname}{Executive summary}
 classoption: twocolumn
+abstract: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Quisque eu nibh at eros volutpat elementum a et metus. Morbi elementum molestie magna vitae hendrerit. In bibendum ante lacus, in posuere sem facilisis id. Proin tempus accumsan orci ac rutrum. Donec consectetur eleifend nibh id placerat. Curabitur pharetra dui enim, eu ultrices odio finibus non. Aenean tincidunt tellus congue fermentum tincidunt. Fusce a dolor varius, viverra lorem vitae, hendrerit metus. Phasellus tristique neque tortor. Sed sodales elit a dui commodo, et venenatis neque varius. Sed vitae mattis mi. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Nunc lobortis arcu sit amet leo elementum eleifend. Cras congue mattis tincidunt. Maecenas vitae sapien quis ligula laoreet eleifend."
 ---
 
 ```{r setup, include=FALSE}
@@ -47,9 +49,7 @@ options(scipen = 99)
 set.seed(321)
 ```
 
-# Technical Report {-}
 
-Readers who are primarily interested in the overall conclusions without too much details on the methods can easily consult the **summarised results**, which accompanies this document. This is the technical report containing a more detailed discussion of the used methods and obtained results.
 
 ```{r load data, include=FALSE}
 load('RejectionStatus.rda')
@@ -75,11 +75,11 @@ In this section general descriptive statistics are given and multiple methods fo
 
 ## Basic descriptive summary
 
-In the complete dataset, `r round(mean(RejectionStatus$Reject_Status) * 100) `% of the transplanted kidneys were rejected. 
+In this study `r dim(GeneExpression)[2]` gene expression levels of `r dim(GeneExpression)[1]` samples were analysed. In total, `r sum(RejectionStatus$Reject_Status)` or `r round(mean(RejectionStatus$Reject_Status) * 100) `% of the transplanted kidneys were rejected. 
 
 Several descriptive statistics (mean, sd, median, iqr, min, and max) were calculated for every gene and kidney rejection status combination. This resulted in 2 (accepted vs. rejected) distributions of every statistic across genes. Note that these statistics were only calculated to perform a visual inspection.
 
-The resulted plot is presented in figure \ref{descriptives}. From this figure we can see there are, at least on this level, differences between groups. Most notable are the mean and median expression levels which tend to be closer to the  overall mean (across groups) expression levels in the _accepted_ group and more varying in the _rejected_ group. There seems to be more variablity in the measures of dispersion in the _rejected_ group. Finally there are minimal differences between the min/max expression level distributions, perhaps suggesting that gene expression levels in the _rejected_ group are slightly less extreme than in the _accepted_ group.
+The resulted plot is presented in figure 1. From this figure we can see there are, at least on this level, differences between the two groups. Most notable are the mean and median expression levels which tend to be closer to the overall mean (across groups) expression levels in the _accepted_ group and more varying in the _rejected_ group. There seems to be more variablity in the measures of dispersion in the _rejected_ group. Finally there are minimal differences between the min/max expression level distributions, perhaps suggesting that gene expression levels in the _rejected_ group are slightly less extreme than in the _accepted_ group.
 
 ```{r descriptives, echo=FALSE, fig.cap="Descriptive statistics across grenes and between groups. Note that the data were centered before calculating the statistics."}
 df <- tibble(patient = RejectionStatus$Patient_ID, 
@@ -110,10 +110,11 @@ basics_long %>%
 ggplot(basics_long, aes(value, fill = reject)) +
   geom_density(alpha = 0.5) +
   theme_classic() +
-  labs(fill = "Status") + 
+  labs(fill = "Rejection status") + 
   facet_wrap("statistic", scales = "free" ) +
   scale_fill_manual(values = c("#4DBBD5", "#E64B35")) +
-  labs(x="")
+  labs(x="") +
+  theme(legend.position = "bottom")
 ```
 
 ## Advanced exploratory analyses
@@ -145,35 +146,56 @@ for(i in 1:3){
 ```
 
 The sparse LDA was performed to find potential candidate genes for future investigation. Due to computational constraints (our system ran out of memory) we needed to split the data set in 3 parts (each part consisting of 282 observations on `r dim(GeneExpression)[2]/3` genes). We considered this approach to be valid since we only used it as an exploratory tool.
-In total `r length(id.all)` genes (or `r length(id.all)/dim(GeneExpression)[2]*100`%) had non-zero loadings. 
+In total `r length(id.all)` genes (or `r round(length(id.all)/dim(GeneExpression)[2]*100,1)`%) had non-zero loadings. 
 
-Because this still is a substantial amount, only the genes with loadings in absolute value larger than two standard deviations were further considered ($|v_i| > 2sd(v),$ with $i =\{1,...,116 \}$, where $v_i$ is the ith loading). This resulted in a list of `r length(id.all[which(abs(loadings) > 2*sd(loadings))])` genes. The list of genes can be found in appendix \ref{sparse LDA}.
+Because this is still a substantial amount, only the genes with loadings in absolute value larger than two standard deviations were further considered ($|v_i| > 2sd(v),$ with $i =\{1,...,116 \}$, where $v_i$ is the ith loading). This resulted in a list of `r length(id.all[which(abs(loadings) > 2*sd(loadings))])` genes. The list of genes can be found in appendix \ref{sparse LDA}.
+
+By using these gene's loadings we calculated the scores of the linear discriminant for every sample and used these to construct the following graph. 
+
+```{r slda-density, fig.cap="Density plot of linear discriminant scores based on the selected subset of genes."}
+best_all <- id.all[which(abs(loadings) > 2*sd(loadings))]
+best_116 <- which(abs(loadings) > 2*sd(loadings))
+
+Z <- GeneExpression_C[,best_all] %*% loadings[best_116]
 
 
-TO DO: plot invoegen, boxplot of scatterplot, + kiezen tussen ofwel op basis van 116 genen of best subset.
+tibble(scores = Z, reject = factor(RejectionStatus$Reject_Status, labels = c("Accepted", 
+                                                                             "Rejected"))) %>%
+  ggplot(aes(x = scores, fill = reject)) +
+  geom_density(alpha = 0.4) +
+  theme_classic() +
+  scale_fill_manual(values = c("#4DBBD5", "#E64B35")) +
+  labs(fill = "Rejection status") +
+  theme(legend.position = "bottom") +
+  geom_linerange(inherit.aes = F, aes(x=scores), ymin = 0, ymax=0.01 )
 
+```
+
+From this graph we can see that to a degree a distinction can be made, albeit with a substantial overlap.
 
 ## Conclusions Exploratory Analysis
 
-No articulate distinction between the rejection status groups could be made with any of the used methods. This suggests that the main directions of the gene expression data do not correspond to the groups of the accepted/rejected kidneys.
+Although differences between groups could be found within the data, no articulate distinction between the rejection status groups could be made with any of the used methods. This finding suggests there is relevant information at the genetic level w.r.t. transplant kidney rejection, but more factors need to be taken into account in order to arrive at a better understanding.
 
-Overall the results indicate that there certainly is relevant information at the genetic level w.r.t. transplant kidney rejection, in the sense that it was possible to make a certain distinction between groups, but not without a substantial overlap. The latter suggests that a relatively large part of the information given in the data set is not informative for the distinction of transplant kidney rejection.
+The main directions of variability in the gene expression dataset do not coincide with the separation between the rejection status groups. Nevertheless, certain genes were identified as potentially closely related to the differentiation between the two groups using sparse LDA.
 
-# Differentiating genes between kidney acceptance and rejection
+# Differentially expressed genes between kidney rejection groups
 
-The hypothesis tests were performed on the uncentered data. Before testing, a visual inspection of several QQ-plots was done to verify whether the variables follow a normal distribution for both the accepted and rejected groups. The interested reader can find a few of these QQ-plots in the appendix "QQ-plots".
+In order to find out which genes are differentially expressed between rejection status groups null hypotheses were tested against alternative hypotheses as follows. 
 
-These QQ-plots showed that some genes were normally distributed, but also that some genes are not. Nevertheless, two-sided two-sample Welch t-tests were done on the uncentered data to determine whether the two groups can be differentiated based on the gene expression level for every gene. The Welch t-test was chosen because of unequal variances and difference in sample size between the two groups, even though it seems that not all genes were normally distributed. 
+$$\left.\begin{aligned} H_{0,i}: \mu_{rejected, i} = \mu_{accepted,i} \\ H_{a,i}: \mu_{rejected, i}\neq \mu_{accepted,i} \end{aligned} \right \} \quad with \space i = \{1,\dots,54675\} $$
 
-The null hypotheses are $\mu_{rejected, i} = \mu_{accepted,i}$ with $i = \{1,...,54675\}$, and the alternative hypotheses are $\mu_{rejected, i}\neq \mu_{accepted,i}$ with $i = \{1,...,54675\}$.
+In these hypotheses $\mu_{rejected,i}$ and $\mu_{accepted,i}$ are the population means of the gene expression level of the ith gene in the rejected and accepted kidney rejection group respectively. Before testing, a visual inspection of 30 QQ plots, from 15 randomly drawn variables, was done to assess whether the variables follow a normal distribution for both groups separately. These QQ plots showed that some genes were normally distributed, but also that many genes were not. 
 
-To account for the multiple testing problem at this scale (54675 simultaneous hypothesis tests), the FDR is controlled at 0.10 through application of the method of Benjamini and Hochberg (1995).
+Nevertheless, two-sided Welch t-tests were performed on the uncentered data to determine whether the two groups can be differentiated based on the gene expression level for every gene. The choice for the Welch t-test is motivated by the presence of unequal variances and **differences in sample size** between the two groups, even though not all genes were normally distributed. We included a small random subset 6 QQ plots in the appendix so the reader, if she/he wishes, can have a rough idea of the divergence from normality.
+
+To address the multiple testing problem at this large scale (54675 simultaneous tests), the FDR is controlled at 0.10 through application of the method of Benjamini and Hochberg (1995).
 
 
 ```{r welch t-test}
 AllTestResults <- matrix(nrow=ncol(GeneExpression),  
                         ncol=3 ) 
-rownames(AllTestResults) <- colnames(GeneExpression[,1:54675])
+rownames(AllTestResults) <- colnames(GeneExpression)
 colnames(AllTestResults) <- c('p-value', 'test-statistic', 'degreeFreedom')
 
 for (i in seq(1,54675)){
@@ -184,30 +206,38 @@ for (i in seq(1,54675)){
 }
 ```
 
-Histogram of the p-values
+To summarise the results we constructed a histogram of both the regular and adjusted p-values or q-values. 
 
-```{r histogram p-values}
-hist(AllTestResults[,'p-value'], main='Histogram of the p-values', xlab='p-value')
-```
-
-This histogram does not follow the uniform distribution, it has many small p-values. This indicates that for many variables, the null hypothesis can probably be rejected. Next, theBH95 method is done and the FDR is controlled at 10%.
-
-```{r}
+```{r histogram p-values, fig.cap="Histograms of regular and adjusted p-values. The dashed line indicates the threshold."}
 adjusted <- p.adjust(AllTestResults[,"p-value"], method = "BH")
-
 rejections <- sum(adjusted < 0.1)
+
+tibble(gene_index = 1:length(AllTestResults[,1]), pval = AllTestResults[,1],
+       adjusted = adjusted) %>%
+  pivot_longer(-gene_index, names_to = "type", values_to = "p.value") %>%
+  mutate(type = factor(type, levels = c("pval", "adjusted"), 
+                       labels = c("p-value", "q-value"))) -> df.p
+
+ggplot(df.p, aes(p.value)) +
+  geom_histogram(color="grey70") +
+  facet_grid(.~type) +
+  theme_classic() +
+  geom_vline(xintercept = 0.1, color = "red", linetype = "dashed") +
+  labs(x="p-value",
+       y = "frequency") +
+  scale_x_continuous(breaks = c( 0.1, 0.5,1))
+
 ```
 
+Both histograms reveal non-uniform distributions. More importantly, they have many small values, indicating that for many genes the null hypothesis was rejected. Based on the q-values, there were `r rejections` rejected null hypotheses. As such we conclude that the mean gene expression differs between the accepted and rejected kidney groups for those `r rejections` genes. As the FDR is controlled at 10%, it is expected to have around `r round(rejections*.1,0)` false discoveries.
 
-There were `r rejections` rejected null hypotheses. As such we conclude that the gene expression differs between the accepted and rejected kidneys for those `r rejections` genes. As the FDR is controlled at 10%, it is expected to have around `r round(rejections*.1,0)` false discoveries.
-
-Next, the z-scores are plotted and compared to the local false discovery rate.
+Next, the normalised test statistics (z-scores) are plotted and compared to the local false discovery rate.
 
 ```{r z-scores}
 z_scores <- qnorm(pt(AllTestResults[,'test-statistic'],df=AllTestResults[i,'degreeFreedom']))
 fdr <- locfdr(z_scores,plot=0,nulltype=0)$fdr
 
-hist(z_scores,breaks=120,prob=T,ylim=c(0,0.39), ylab=NULL, axes=FALSE, main='lfdr and z-scores')
+hist(z_scores,breaks=120,prob=T,ylim=c(0,0.2), ylab=NULL, axes=FALSE, main='lfdr and z-scores')
 par(new=TRUE)
 plot(z_scores[order(z_scores)],fdr[order(z_scores)],
      type="l",lwd=2,col="red",xlab="z-scores",lty=2,
@@ -215,6 +245,15 @@ plot(z_scores[order(z_scores)],fdr[order(z_scores)],
 abline(a=0.1, b=0, col='blue')
 ```
 
+```{r}
+z.locfdr <- locfdr(z_scores, nulltype = 0, plot = 1)
+
+```
+
+```{r}
+z.locfdr <- locfdr(z_scores, nulltype = 0, plot = 2)
+
+```
 
 
 From the figure \ref{plot z-scores vs lfdr} can be concluded that a fdr < 0.1 can be obtained for negative z-scores, smaller than -2.5 and for very large z-scores, larger than 2.5. For these z-scores, it is more likely that when rejecting the null hypotheses, a true discovery is made.
