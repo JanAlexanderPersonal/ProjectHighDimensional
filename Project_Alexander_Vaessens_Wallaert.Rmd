@@ -11,7 +11,7 @@ date: "8/4/2020"
 output:
   pdf_document: 
     number_sections: yes
-    toc: no
+    toc: yes
   html_document:
     df_print: paged
     toc: yes
@@ -20,6 +20,7 @@ output:
     toc: yes
     toc_depth: '3'
 header-includes: \usepackage{amsmath}
+classoption: twocolumn
 ---
 
 ```{r setup, include=FALSE}
@@ -40,8 +41,9 @@ library(car)
 library(tsne)
 library(locfdr)
 
-knitr::opts_chunk$set(echo = FALSE, fig.width=6, fig.height=4)
-
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE,
+                      fig.width=6, fig.height=4)
+options(scipen = 99)
 set.seed(321)
 ```
 
@@ -118,7 +120,7 @@ ggplot(basics_long, aes(value, fill = reject)) +
 
 Multiple methods for exploration and visualisation of high dimensional data were applied (sparse PCA, MDS, sparse LDA, LLE, ISOMAP, Sammon Mapping, Diffusion maps, and t-SNE), yet without clear results. Because the sparse LDA gave the best results we discuss the results here and refer to the appendices \ref{MDS} to \ref{tsne} for the results of the other techniques.
 
-```{r sparse lda, eval=FALSE, echo=FALSE}
+```{r sparse lda, echo=FALSE}
 id.all <- numeric()
 loadings <- numeric()
 variables_per_part <- dim(GeneExpression)[2]/3
