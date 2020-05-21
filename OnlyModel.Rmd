@@ -1,0 +1,268 @@
+---
+title: | 
+        | Project
+        | Transplant kidney rejection
+        | High Dimensional Data Analysis
+author:
+  - Jan Alexander^[jan.alexander@ugent.be]
+  - Annabel Vaessens^[annabel.vaessens@vub.be]
+  - Steven Wallaert^[steven.wallaert@ugent.be]
+date: "8/4/2020"
+output:
+  pdf_document: 
+    number_sections: yes
+    toc: no
+  html_document:
+    df_print: paged
+    toc: yes
+    toc_depth: '3'
+  word_document:
+    toc: yes
+    toc_depth: '3'
+header-includes: \usepackage{amsmath}
+---
+
+```{r setup, include=FALSE}
+
+rm(list = ls())
+
+library(latex2exp)
+library(tidyverse)
+library(boot)
+library(PMA)
+library(pls)
+library(MASS)
+library(glmnet)
+library(ROCR)
+#library(RDRToolbox)
+library(diffusionMap)
+library(car)
+library(sgof)
+library(tsne)
+library(locfdr)
+
+knitr::opts_chunk$set(echo = TRUE, fig.width=6, fig.height=4)
+
+set.seed(321)
+```
+
+# Introduction
+
+The data is loaded as the raw dataset, the centered dataset and the standardized dataset.
+
+```{r load data, eval=TRUE, include=TRUE}
+load('RejectionStatus.rda')
+load('X_GSE21374.rda')
+dim(RejectionStatus)
+dim(X_GSE21374)
+
+GeneExpression <- t(X_GSE21374)
+GeneExpression_C <- scale(t(X_GSE21374),scale = F) # centered
+GeneExpression_S <- scale(t(X_GSE21374),scale = T) # scaled
+
+GeneExpression <-
+  GeneExpression[order(as.numeric(row.names(GeneExpression))), ]
+RejectionStatus <-
+  RejectionStatus[order(as.numeric(RejectionStatus$Patient_ID)), ]
+
+all.equal(row.names(GeneExpression), as.character(RejectionStatus$Patient_ID))
+```
+
+
+
+# Prediction of kidney transplant rejection
+
+The dataset is split into a training and test dataset.
+
+```{r train test split}
+ind_train <-
+  sample(seq_len(nrow(RejectionStatus)), size = floor(nrow(RejectionStatus) * 0.70))
+
+Y_train <- as.matrix(RejectionStatus[ind_train, 'Reject_Status'])
+X_train <- as.matrix(GeneExpression_C[ind_train,])
+Y_test <- as.matrix(RejectionStatus[-ind_train, 'Reject_Status'])
+X_test <- as.matrix(GeneExpression_C[-ind_train,])
+```
+
+## Lasso regression
+
+```{r lasso}
+m.cv <-
+  cv.glmnet(
+    x = X_train,
+    y = Y_train,
+    alpha = 1,
+    family = 'binomial',
+    type.measure = "auc"
+  )
+m <- glmnet(
+  x = X_train,
+  y = Y_train,
+  alpha = 1,
+  family = 'binomial',
+  lambda = m.cv$lambda.min
+)
+pred_m <-
+  prediction(predict(
+    m,
+    newx = X_test,
+    type = 'response'
+  ),
+  Y_test)
+plot(m.cv, xlab = TeX(" $ log(\\gamma ) $ "))
+```
+
+In the figure above, one can see that for $\gamma$ equal to   `r m.cv$lambda.min`  , the area under the curve ( _AUC_ ) is maximal (`r performance(pred_m, "auc")@y.values`) for the train dataset based on a 10-fold cross-validation over the train dataset. 
+
+The ROC curve, estimated with the cross-validation dataset, is shown below:
+
+```{r performance lasso}
+perf <- performance(pred_m, 'sens', 'fpr')
+plot(perf)
+```
+
+This model only uses 
+`r length(unique(summary(coef(m))[-1,1])) ` 
+of the genes. 
+This is a considerable dimensional reduction.
+This is illustrated below. This figure shows the loadings of the 
+`r length(unique(summary(coef(m))[-1,1])) ` 
+selected values.
+
+```{r summary lasso, fig.width=4, fig.height=3.5, eval=TRUE, echo=FALSE}
+plot(
+  summary(coef(m))[-1, 1],
+  summary(coef(m))[-1, 3],
+  cex = 1,
+  pch = 3,
+  xlab = 'gene index' ,
+  ylab = TeX(" $ \\hat{\\beta} $ ")
+)
+```
+
+## Ridge regression
+
+```{r ridge, eval=TRUE, echo=FALSE}
+m.cv <-
+  cv.glmnet(
+    x = X_train,
+    y = Y_train,
+    alpha = 0,
+    family = 'binomial',
+    type.measure = "auc"
+  )
+m <- glmnet(
+  x = X_train,
+  y = Y_train,
+  alpha = 0,
+  family = 'binomial',
+  lambda = m.cv$lambda.min
+)
+pred_m <-
+  prediction(predict(
+    m,
+    newx = X_test,
+    type = 'response'
+  ),
+  Y_test)
+plot(m.cv, xlab = TeX(" $ log(\\gamma ) $ "))
+```
+
+Likewise as for the Lasso regression, for $\gamma$ equal to `r m.cv$lambda.min`, the optimal _AUC_ (`r performance(pred_m, "auc")@y.values`) is obtained. 
+
+The ROC curve, estimated with the cross-validation dataset, is shown below:
+
+```{r performance ridge}
+perf <- performance(pred_m, 'sens', 'fpr')
+plot(perf)
+```
+
+## Principal component regression
+
+```{r PCR CV, warning=FALSE}
+trapezoid_integration <- function(x, y) {
+  elements <- (y[-1] + y[-length(y)]) * abs(diff(x))
+  sum(elements/2)
+}
+# cost function for CV
+AUC_est <- function(obs, pred){
+  obs <- factor(obs, levels = c(0,1))
+  # AUC is estimated by calculating the sensitivity and the FPR for different values of cutoff C
+  intervals <- 500
+  sensitivity <- rep(NA, intervals+1)
+  specificity <- rep(NA, intervals+1)
+  for(i in seq(0, intervals)){
+    cutoff <- i/intervals
+    ypred <- factor(as.numeric(pred > cutoff), levels = c(0, 1))
+    tab <- table(obs, ypred)
+    TN <- tab[1]
+    FN <- tab[2]
+    FP <- tab[3]
+    TP <- tab[4]
+    sensitivity[i+1] <- TP / (TP + FN)
+    specificity[i+1] <- TN / (FP + TN)
+  }
+  #plot(1-specificity, sensitivity)
+  AUC <- trapezoid_integration(1-specificity, sensitivity)
+  #cat(paste0('AUC estimate : ', AUC, '\n'))
+  return(1-AUC)
+}
+
+max.n.comps <- 100 #random nr
+
+cv.glm.pcr <- rep(NA, max.n.comps)
+X_train.svd <- svd(X_train)
+
+U <- X_train.svd$u
+D <- diag(X_train.svd$d)
+Z_train <- U %*% D
+
+for (i in 1:max.n.comps) {
+  fitdata <- data.frame(Y_train, Z_train[, 1:i])
+  
+  mod <- glm(Y_train ~ ., data = fitdata, family = "binomial")
+  
+  cv.glm.pcr[i] <-
+    cv.glm(fitdata, mod, cost = AUC_est, K = 10)$delta[1]
+}
+
+plot(1:max.n.comps, cv.glm.pcr, type = "l", main = 'test')
+npc.min <- which.min(cv.glm.pcr)
+npc.val <- cv.glm.pcr[npc.min]
+abline(v = npc.min, col = 2)
+```
+
+
+```{r PCR model, warning=FALSE}
+V <- X_train.svd$v
+Z_test <- X_test %*% V
+fitdata <- data.frame(Y_train, Z_train[,1:npc.min])
+mod <- glm(Y_train ~ ., data = fitdata)
+preddata <- data.frame(Z_test[,1:npc.min])
+pred_mod <- prediction(predict(mod, newdata = preddata), Y_test)
+perf_mod <- performance(pred_mod, "sens", "fpr")
+plot(perf_mod)
+```
+
+AUC is `r performance(pred_mod, "auc")@y.values`.
+
+## Final model evaluation
+
+The PCR model is performing best, based on the AUC criterium. By chosing cutoff c = 0.21, we can achieve a 
+F1-score of over 0.7. This is represented on the following graph. 
+Below, the F1 graph, the confusion matrix for the PCR model with cutoff c = 0.21 is shown.
+
+The confusion matrix shows no false negatives at all, but the number of false positives is high.
+
+```{r}
+perf_f1 <- performance(pred_mod, "f")
+plot(perf_f1)
+pred <- predict(mod, newdata = preddata)
+cutoff <- .21
+ypred <- factor(as.numeric(pred > cutoff), levels = c(0, 1))
+tab <- table(Y_test, ypred)
+knitr::kable(tab, digits = 0, align = 'l')
+```
+
+
+

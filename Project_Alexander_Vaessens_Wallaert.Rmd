@@ -221,6 +221,7 @@ From the figure \ref{plot z-scores vs lfdr} can be concluded that a fdr < 0.1 ca
 
 # Prediction of kidney transplant rejection
 
+
 The dataset is split into a training and test dataset.
 
 ```{r train test split}
@@ -244,14 +245,6 @@ m.cv <-
     family = 'binomial',
     type.measure = "auc"
   )
-plot(m.cv, xlab = TeX(" $ log(\\gamma ) $ "))
-```
-
-In the figure above, one can see that for $\gamma$ equal to   `r m.cv$lambda.min`  , the area under the curve ( _AUC_ ) is maximal for the train dataset based on a 10-fold cross-validation over the train dataset. 
-
-The ROC curve, estimated with the cross-validation dataset, is shown below:
-
-```{r performance lasso}
 m <- glmnet(
   x = X_train,
   y = Y_train,
@@ -266,13 +259,21 @@ pred_m <-
     type = 'response'
   ),
   Y_test)
+plot(m.cv, xlab = TeX(" $ log(\\gamma ) $ "))
+```
+
+In the figure above, one can see that for $\gamma$ equal to   `r m.cv$lambda.min`  , the area under the curve ( _AUC_ ) is maximal (`r performance(pred_m, "auc")@y.values`) for the train dataset based on a 10-fold cross-validation over the train dataset. 
+
+The ROC curve, estimated with the cross-validation dataset, is shown below:
+
+```{r performance lasso}
 perf <- performance(pred_m, 'sens', 'fpr')
 plot(perf)
 ```
 
-This model uses 
+This model only uses 
 `r length(unique(summary(coef(m))[-1,1])) ` 
-of the features. 
+of the genes. 
 This is a considerable dimensional reduction.
 This is illustrated below. This figure shows the loadings of the 
 `r length(unique(summary(coef(m))[-1,1])) ` 
@@ -289,10 +290,9 @@ plot(
 )
 ```
 
-
 ## Ridge regression
 
-```{r ridge}
+```{r ridge, eval=TRUE, echo=FALSE}
 m.cv <-
   cv.glmnet(
     x = X_train,
@@ -301,14 +301,6 @@ m.cv <-
     family = 'binomial',
     type.measure = "auc"
   )
-plot(m.cv, xlab = TeX(" $ log(\\gamma ) $ "))
-```
-
-In the figure above, one can see that for $\gamma$ equal to   `r m.cv$lambda.min`  , the area under the curve ( _AUC_ ) is maximal for the train dataset based on a 10-fold cross-validation over the train dataset. 
-
-The ROC curve, estimated with the cross-validation dataset, is shown below:
-
-```{r performance ridge}
 m <- glmnet(
   x = X_train,
   y = Y_train,
@@ -323,73 +315,104 @@ pred_m <-
     type = 'response'
   ),
   Y_test)
+plot(m.cv, xlab = TeX(" $ log(\\gamma ) $ "))
+```
+
+Likewise as for the Lasso regression, for $\gamma$ equal to `r m.cv$lambda.min`, the optimal _AUC_ (`r performance(pred_m, "auc")@y.values`) is obtained. 
+
+The ROC curve, estimated with the cross-validation dataset, is shown below:
+
+```{r performance ridge}
 perf <- performance(pred_m, 'sens', 'fpr')
 plot(perf)
 ```
-AUC is `r performance(pred_m, "auc")@y.values`.
 
 ## Principal component regression
 
-```{r PCR CV}
+```{r PCR CV, warning=FALSE}
+trapezoid_integration <- function(x, y) {
+  elements <- (y[-1] + y[-length(y)]) * abs(diff(x))
+  sum(elements/2)
+}
 # cost function for CV
-MISERR <- function(obs, pred, cutoff = 0.5){
-  ypred <- as.numeric(pred > cutoff)
-  tab <- table(obs, ypred)
-  miserr <- 1 - sum(diag(tab))/sum(tab)
-  return(miserr)
+AUC_est <- function(obs, pred){
+  obs <- factor(obs, levels = c(0,1))
+  # AUC is estimated by calculating the sensitivity and the FPR for different values of cutoff C
+  intervals <- 500
+  sensitivity <- rep(NA, intervals+1)
+  specificity <- rep(NA, intervals+1)
+  for(i in seq(0, intervals)){
+    cutoff <- i/intervals
+    ypred <- factor(as.numeric(pred > cutoff), levels = c(0, 1))
+    tab <- table(obs, ypred)
+    TN <- tab[1]
+    FN <- tab[2]
+    FP <- tab[3]
+    TP <- tab[4]
+    sensitivity[i+1] <- TP / (TP + FN)
+    specificity[i+1] <- TN / (FP + TN)
+  }
+  #plot(1-specificity, sensitivity)
+  AUC <- trapezoid_integration(1-specificity, sensitivity)
+  #cat(paste0('AUC estimate : ', AUC, '\n'))
+  return(1-AUC)
 }
 
-max.n.comps <- 50 #random nr
+max.n.comps <- 100 #random nr
 
 cv.glm.pcr <- rep(NA, max.n.comps)
-npc.min <- rep(NA, 9)
-npc.val <- rep(NA, 9)
 X_train.svd <- svd(X_train)
 
 U <- X_train.svd$u
 D <- diag(X_train.svd$d)
 Z_train <- U %*% D
 
-for (j in seq(1, 9)) {
-  for (i in 1:max.n.comps) {
-    fitdata <- data.frame(Y_train, Z_train[, 1:i])
-    
-    mod <- glm(Y_train ~ ., data = fitdata, family = "binomial")
-    
-    cv.glm.pcr[i] <-
-      cv.glm(fitdata, mod, cost = {
-        function (obs, pred)
-          MISERR(obs, pred, cutoff = j/10)
-      }, K = 10)$delta[1]
-  }
+for (i in 1:max.n.comps) {
+  fitdata <- data.frame(Y_train, Z_train[, 1:i])
   
-  plot(1:max.n.comps, cv.glm.pcr, type = "l")
-  npc.min[j] <- which.min(cv.glm.pcr)
-  npc.val[j] <- cv.glm.pcr[npc.min[j]]
-  abline(v = npc.min[j], col = 2)
+  mod <- glm(Y_train ~ ., data = fitdata, family = "binomial")
+  
+  cv.glm.pcr[i] <-
+    cv.glm(fitdata, mod, cost = AUC_est, K = 10)$delta[1]
 }
-npc.m <- npc.min[which.min(npc.val)]
+
+plot(1:max.n.comps, cv.glm.pcr, type = "l", main = 'test')
+npc.min <- which.min(cv.glm.pcr)
+npc.val <- cv.glm.pcr[npc.min]
+abline(v = npc.min, col = 2)
 ```
 
 
-```{r PCR model}
+```{r PCR model, warning=FALSE}
 V <- X_train.svd$v
 Z_test <- X_test %*% V
-
-fitdata <- data.frame(Y_train, Z_train[,1:npc.m])
-
+fitdata <- data.frame(Y_train, Z_train[,1:npc.min])
 mod <- glm(Y_train ~ ., data = fitdata)
-
-preddata <- data.frame(Z_test[,1:npc.m])
-
+preddata <- data.frame(Z_test[,1:npc.min])
 pred_mod <- prediction(predict(mod, newdata = preddata), Y_test)
-
 perf_mod <- performance(pred_mod, "sens", "fpr")
-
 plot(perf_mod)
 ```
 
 AUC is `r performance(pred_mod, "auc")@y.values`.
+
+## Final model evaluation
+
+The PCR model is performing best, based on the AUC criterium. By chosing cutoff c = 0.21, we can achieve a 
+F1-score of over 0.7. This is represented on the following graph. 
+Below, the F1 graph, the confusion matrix for the PCR model with cutoff c = 0.21 is shown.
+
+The confusion matrix shows no false negatives at all, but the number of false positives is high.
+
+```{r}
+perf_f1 <- performance(pred_mod, "f")
+plot(perf_f1)
+pred <- predict(mod, newdata = preddata)
+cutoff <- .21
+ypred <- factor(as.numeric(pred > cutoff), levels = c(0, 1))
+tab <- table(Y_test, ypred)
+knitr::kable(tab, digits = 0, align = 'l')
+```
 
 # Conclusions
 
