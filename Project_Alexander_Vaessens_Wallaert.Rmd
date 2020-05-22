@@ -310,14 +310,15 @@ In the figure above, one can see that for $\gamma$ equal to   `r m.cv$lambda.min
 The ROC curve, estimated with the cross-validation dataset, is shown below:
 
 ```{r performance lasso}
+lasso_selection <- unique(summary(coef(m))[-1, 1])
 perf <- performance(pred_m, 'sens', 'fpr')
 plot(perf)
 ```
 
 This model only uses 
-`r length(unique(summary(coef(m))[-1,1])) ` 
-of the genes: `r unique(summary(coef(m))[-1,1])`.
-Compared to the interesting genes found with the Sparse LDA method: `r intersect(unique(summary(coef(m))[-1,1]), best_116)`
+`r length(lasso_selection) ` 
+of the genes: `r lasso_selection`.
+Compared to the interesting genes found with the Sparse LDA method: `r intersect(lasso_selection, best_116)`
 This is a considerable dimensional reduction.
 This is illustrated below. This figure shows the loadings of the 
 `r length(unique(summary(coef(m))[-1,1])) ` 
@@ -332,6 +333,44 @@ plot(
   xlab = 'gene index' ,
   ylab = TeX(" $ \\hat{\\beta} $ ")
 )
+```
+
+When performing the same analysis on this reduced dataset as was performed on the complete dataset, we see that the gene expressions become a bit more separable.
+
+```{r descriptives, echo=FALSE, fig.cap="Descriptive statistics across grenes and between groups. Note that the data were centered before calculating the statistics."}
+df <- tibble(patient = RejectionStatus$Patient_ID, 
+             reject = ifelse(RejectionStatus$Reject_Status == 1, "Rejected", "Accepted"), 
+             as.data.frame(GeneExpression_C)[, lasso_selection]) %>%
+  pivot_longer(cols = c(-reject,-patient) , names_to = "gene", values_to = "expression")
+
+# calculate summaries
+df %>%
+  group_by(reject, gene) %>%
+  summarise(mean = mean(expression),
+            sd = sd(expression),
+            min = min(expression),
+            max = max(expression),
+            median = median(expression),
+            iqr = IQR(expression)) -> basics
+# long format  
+basics %>%
+  pivot_longer(-c(reject, gene), 
+               names_to = "statistic", 
+               values_to = "value") -> basics_long
+# fix order of statistics for plot facet
+basics_long %>%
+  mutate(statistic = factor(statistic, 
+                            levels = c("mean", "sd", "min",
+                                       "median", "iqr", "max"))) -> basics_long
+# plot
+ggplot(basics_long, aes(value, fill = reject)) +
+  geom_density(alpha = 0.5) +
+  theme_classic() +
+  labs(fill = "Rejection status") + 
+  facet_wrap("statistic", scales = "free" ) +
+  scale_fill_manual(values = c("#4DBBD5", "#E64B35")) +
+  labs(x="") +
+  theme(legend.position = "bottom")
 ```
 
 ## Ridge regression
