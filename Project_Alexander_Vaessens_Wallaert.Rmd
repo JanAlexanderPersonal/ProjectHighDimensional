@@ -260,7 +260,11 @@ From the figure \ref{plot z-scores vs lfdr} can be concluded that a fdr < 0.1 ca
 
 # Prediction of kidney transplant rejection
 
-
+The objective of this final part is to construct a classifier for kidney acceptance or rejection based on the measured gene expressions.
+Three approaches are compared: lasso, ridge regression and principle component regression. 
+These approaches will be compared based on the AUC.
+The final modelling approach is chosen as the one that shows the largest cross-validated AUC.
+The cutoff is chosen based on the F1-score.
 The dataset is split into a training and test dataset.
 
 ```{r train test split}
@@ -301,7 +305,7 @@ pred_m <-
 plot(m.cv, xlab = TeX(" $ log(\\gamma ) $ "))
 ```
 
-In the figure above, one can see that for $\gamma$ equal to   `r m.cv$lambda.min`  , the area under the curve ( _AUC_ ) is maximal (`r performance(pred_m, "auc")@y.values`) for the train dataset based on a 10-fold cross-validation over the train dataset. 
+In the figure above, one can see that for $\gamma$ equal to   `r m.cv$lambda.min`  , the area under the curve ( _AUC_ ) is maximal (`r round(performance(pred_m, "auc")@y.values[[1]], digits = 3)`) for the train dataset based on a 10-fold cross-validation over the train dataset. 
 
 The ROC curve, estimated with the cross-validation dataset, is shown below:
 
@@ -312,7 +316,8 @@ plot(perf)
 
 This model only uses 
 `r length(unique(summary(coef(m))[-1,1])) ` 
-of the genes. 
+of the genes: `r unique(summary(coef(m))[-1,1])`.
+Compared to the interesting genes found with the Sparse LDA method: `r intersect(unique(summary(coef(m))[-1,1]), best_116)`
 This is a considerable dimensional reduction.
 This is illustrated below. This figure shows the loadings of the 
 `r length(unique(summary(coef(m))[-1,1])) ` 
@@ -357,7 +362,7 @@ pred_m <-
 plot(m.cv, xlab = TeX(" $ log(\\gamma ) $ "))
 ```
 
-Likewise as for the Lasso regression, for $\gamma$ equal to `r m.cv$lambda.min`, the optimal _AUC_ (`r performance(pred_m, "auc")@y.values`) is obtained. 
+Likewise as for the Lasso regression, for $\gamma$ equal to `r m.cv$lambda.min`, the optimal _AUC_ (`r round(performance(pred_m, "auc")@y.values[[1]], digits = 3)`) is obtained. 
 
 The ROC curve, estimated with the cross-validation dataset, is shown below:
 
@@ -433,7 +438,7 @@ perf_mod <- performance(pred_mod, "sens", "fpr")
 plot(perf_mod)
 ```
 
-AUC is `r performance(pred_mod, "auc")@y.values`.
+AUC is `r round(performance(pred_mod, "auc")@y.values[[1]], digits = 3)`.
 
 ## Final model evaluation
 
