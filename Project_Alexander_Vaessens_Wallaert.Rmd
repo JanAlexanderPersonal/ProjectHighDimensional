@@ -9,14 +9,14 @@ author:
   - Steven Wallaert^[steven.wallaert@ugent.be]
 date: "`r format(Sys.Date(), '%d %m %Y')`"
 output:
-  pdf_document: 
-    number_sections: yes
-    toc: yes
-    fig_caption: true
   html_document:
     df_print: paged
     toc: yes
     toc_depth: '3'
+  pdf_document: 
+    number_sections: yes
+    toc: yes
+    fig_caption: true
   word_document:
     toc: yes
     toc_depth: '3'
@@ -455,8 +455,19 @@ pred <- predict(mod, newdata = preddata)
 cutoff <- .21
 ypred <- factor(as.numeric(pred > cutoff), levels = c(0, 1))
 tab <- table(Y_test, ypred)
+colnames(tab) <- c('accept predicted', 'reject predicted')
+rownames(tab) <- c('accept observed', 'reject observed')
 knitr::kable(tab, digits = 0, align = 'l')
 ```
+This confustionmatrix clearly shows a low sensitivity of `r tab[4] / (tab[3] + tab[4])`, but a high specificity of `r tab[1] / (tab[1] + tab[2])`. 
+In short, this predictor can be trusted relatively well to predict a person will accept the kidney. 
+If the test is positive however and it predicts the person will reject the kidney, there is a significant probability this is a false positive.
+
+
+This behaviour could be _explained_ (or at least understood a little better) when looking back at the exploratory analysis. 
+Here it was already clear that the gene expressions of the patients with rejected kidneys overlap with those of the patients with accepted kidneys. 
+Both are not perfectly separable.
+ 
 
 # Conclusions
 
