@@ -337,7 +337,7 @@ plot(
 
 When performing the same analysis on this reduced dataset as was performed on the complete dataset, we see that the gene expressions become a bit more separable.
 
-```{r descriptives, echo=FALSE, fig.cap="Descriptive statistics across grenes and between groups. Note that the data were centered before calculating the statistics."}
+```{r descriptives for lasso, echo=FALSE, fig.cap="Descriptive statistics across grenes and between groups. Note that the data were centered before calculating the statistics."}
 df <- tibble(patient = RejectionStatus$Patient_ID, 
              reject = ifelse(RejectionStatus$Reject_Status == 1, "Rejected", "Accepted"), 
              as.data.frame(GeneExpression_C)[, lasso_selection]) %>%
