@@ -22,7 +22,7 @@ output:
     toc_depth: '3'
 header-includes: \usepackage{amsmath} \renewcommand{\abstractname}{Executive summary}
 classoption: twocolumn
-abstract: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Quisque eu nibh at eros volutpat elementum a et metus. Morbi elementum molestie magna vitae hendrerit. In bibendum ante lacus, in posuere sem facilisis id. Proin tempus accumsan orci ac rutrum. Donec consectetur eleifend nibh id placerat. Curabitur pharetra dui enim, eu ultrices odio finibus non. Aenean tincidunt tellus congue fermentum tincidunt. Fusce a dolor varius, viverra lorem vitae, hendrerit metus. Phasellus tristique neque tortor. Sed sodales elit a dui commodo, et venenatis neque varius. Sed vitae mattis mi. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Nunc lobortis arcu sit amet leo elementum eleifend. Cras congue mattis tincidunt. Maecenas vitae sapien quis ligula laoreet eleifend."
+abstract: "This research examines whether some genes are responsible for a patient's likelihood of rejecting a kidney after transplantation, for the  Gene Expression Omninibus (GEO) dataset. This dataset consists of gene expression levels of 54675 genes from 282 patients. The variability of the gene expression is ... From the 54675 genes, 18080 genes are identified as having a differential expression between the group of rejected and the group of accepted kidneys. The list of these genes can be found in ...(insert appendix) Kidney rejection can be predicted sufficiently from the gene expressions with 17 genes. The most inmportant genes in predicting rejection are in... (insert appendix). The prediction model (insert which model is best) perfoms the best and (say something about the performance)"
 ---
 
 ```{r setup, include=FALSE}
@@ -81,7 +81,7 @@ Several descriptive statistics (mean, sd, median, iqr, min, and max) were calcul
 
 The resulted plot is presented in figure 1. From this figure we can see there are, at least on this level, differences between the two groups. Most notable are the mean and median expression levels which tend to be closer to the overall mean (across groups) expression levels in the _accepted_ group and more varying in the _rejected_ group. There seems to be more variablity in the measures of dispersion in the _rejected_ group. Finally there are minimal differences between the min/max expression level distributions, perhaps suggesting that gene expression levels in the _rejected_ group are slightly less extreme than in the _accepted_ group.
 
-```{r descriptives, echo=FALSE, fig.cap="Descriptive statistics across grenes and between groups. Note that the data were centered before calculating the statistics."}
+```{r descriptives, echo=FALSE, fig.cap="Descriptive statistics across grenes and between groups."}
 df <- tibble(patient = RejectionStatus$Patient_ID, 
              reject = ifelse(RejectionStatus$Reject_Status == 1, "Rejected", "Accepted"), 
              as.data.frame(GeneExpression_C)) %>%
@@ -113,7 +113,7 @@ ggplot(basics_long, aes(value, fill = reject)) +
   labs(fill = "Rejection status") + 
   facet_wrap("statistic", scales = "free" ) +
   scale_fill_manual(values = c("#4DBBD5", "#E64B35")) +
-  labs(x="") +
+  labs(x="centered gene expression level") +
   theme(legend.position = "bottom")
 ```
 
@@ -167,7 +167,7 @@ tibble(scores = Z, reject = factor(RejectionStatus$Reject_Status, labels = c("Ac
   scale_fill_manual(values = c("#4DBBD5", "#E64B35")) +
   labs(fill = "Rejection status") +
   theme(legend.position = "bottom") +
-  geom_linerange(inherit.aes = F, aes(x=scores), ymin = 0, ymax=0.01 )
+  geom_linerange(inherit.aes = F, aes(x=scores), ymin = 0, ymax=0.05 )
 
 ```
 
@@ -187,7 +187,7 @@ $$\left.\begin{aligned} H_{0,i}: \mu_{rejected, i} = \mu_{accepted,i} \\ H_{a,i}
 
 In these hypotheses $\mu_{rejected,i}$ and $\mu_{accepted,i}$ are the population means of the gene expression level of the ith gene in the rejected and accepted kidney rejection group respectively. Before testing, a visual inspection of 30 QQ plots, from 15 randomly drawn variables, was done to assess whether the variables follow a normal distribution for both groups separately. These QQ plots showed that some genes were normally distributed, but also that many genes were not. 
 
-Nevertheless, two-sided Welch t-tests were performed on the uncentered data to determine whether the two groups can be differentiated based on the gene expression level for every gene. The choice for the Welch t-test is motivated by the presence of unequal variances and **differences in sample size** between the two groups, even though not all genes were normally distributed. We included a small random subset 6 QQ plots in the appendix so the reader, if she/he wishes, can have a rough idea of the divergence from normality.
+Nevertheless, two-sided Welch t-tests were performed on the uncentered data to determine whether the two groups can be differentiated based on the gene expression level for every gene. The choice for the Welch t-test is motivated by the presence of unequal variances between the two groups, even though not all genes were normally distributed. We included a small random subset 6 QQ plots in the appendix so the reader, if she/he wishes, can have a rough idea of the divergence from normality.
 
 To address the multiple testing problem at this large scale (54675 simultaneous tests), the FDR is controlled at 0.10 through application of the method of Benjamini and Hochberg (1995).
 
@@ -237,12 +237,12 @@ Next, the normalised test statistics (z-scores) are plotted and compared to the 
 z_scores <- qnorm(pt(AllTestResults[,'test-statistic'],df=AllTestResults[i,'degreeFreedom']))
 fdr <- locfdr(z_scores,plot=0,nulltype=0)$fdr
 
-hist(z_scores,breaks=120,prob=T,ylim=c(0,0.2), ylab=NULL, axes=FALSE, main='lfdr and z-scores')
-par(new=TRUE)
-plot(z_scores[order(z_scores)],fdr[order(z_scores)],
-     type="l",lwd=2,col="red",xlab="z-scores",lty=2,
-     ylab="fdr")
-abline(a=0.1, b=0, col='blue')
+# hist(z_scores,breaks=120,prob=T,ylim=c(0,0.2), ylab=NULL, axes=FALSE, main='lfdr and z-scores')
+# par(new=TRUE)
+# plot(z_scores[order(z_scores)],fdr[order(z_scores)],
+#      type="l",lwd=2,col="red",xlab="z-scores",lty=2,
+#      ylab="fdr")
+# abline(a=0.1, b=0, col='blue')
 ```
 
 ```{r}
@@ -251,7 +251,7 @@ z.locfdr <- locfdr(z_scores, nulltype = 0, plot = 1)
 ```
 
 ```{r}
-z.locfdr <- locfdr(z_scores, nulltype = 0, plot = 2)
+# z.locfdr <- locfdr(z_scores, nulltype = 0, plot = 2)
 
 ```
 
@@ -619,7 +619,7 @@ In the scree plot \ref{plots mds} it can be seen that the two first dimensions a
 
 Locally linear embedding is a nonlinear dimension reduction method which finds a low-dimensional representation for each points' local neighbourhood by linearly approximating the data in each neighbourhood and returing these coordinates of lower dimension (Roweis and Saul, 2000).
 
-```{r lle, eval=FALSE}
+```{r lle, eval=TRUE}
 lle <- RDRToolbox::LLE(data=GeneExpression_C, dim=3, k=50)
 labels = c("first component", "second component", 'third component')
 plot(lle[,1],lle[,2],col=RejectionStatus$Reject_Status+1,pch=19)
@@ -632,7 +632,7 @@ From figures \ref{lle} can be seen that no distinction between the accepted and 
 
 ISOMAP is a a nonlinear dimension reduction technique presented by Tenenbaum, Silva and Langford in 2000. It preserves rather the global properties of the data. It uses  multidimensional scaling but then with incorporating the geodesic distances imposed by a weighted graph of the k neighbours of each point.
 
-```{r ISOMAP, eval=FALSE}
+```{r ISOMAP, eval=TRUE}
 IM <- RDRToolbox::Isomap(data=GeneExpression_C, dims=3, k=30)
 labelsIM <- c("first component", "second component", "third component")
 plot(IM$dim3[,1],IM$dim3[,2],col=RejectionStatus$Reject_Status+1,pch=19)
