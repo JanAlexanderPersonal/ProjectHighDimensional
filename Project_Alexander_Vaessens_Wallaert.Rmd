@@ -207,7 +207,6 @@ for (i in seq(1,54675)){
 ```
 
 To summarise the results we constructed a histogram of both the regular and adjusted p-values or q-values. 
-
 ```{r histogram p-values, fig.cap="Histograms of regular and adjusted p-values. The dashed line indicates the threshold."}
 adjusted <- p.adjust(AllTestResults[,"p-value"], method = "BH")
 rejections <- sum(adjusted < 0.1)
@@ -233,30 +232,13 @@ Both histograms reveal non-uniform distributions. More importantly, they have ma
 
 Next, the normalised test statistics (z-scores) are plotted and compared to the local false discovery rate.
 
-```{r z-scores}
+```{r lfdr}
 z_scores <- qnorm(pt(AllTestResults[,'test-statistic'],df=AllTestResults[i,'degreeFreedom']))
 fdr <- locfdr(z_scores,plot=0,nulltype=0)$fdr
-
-# hist(z_scores,breaks=120,prob=T,ylim=c(0,0.2), ylab=NULL, axes=FALSE, main='lfdr and z-scores')
-# par(new=TRUE)
-# plot(z_scores[order(z_scores)],fdr[order(z_scores)],
-#      type="l",lwd=2,col="red",xlab="z-scores",lty=2,
-#      ylab="fdr")
-# abline(a=0.1, b=0, col='blue')
-```
-
-```{r}
 z.locfdr <- locfdr(z_scores, nulltype = 0, plot = 1)
-
 ```
 
-```{r}
-# z.locfdr <- locfdr(z_scores, nulltype = 0, plot = 2)
-
-```
-
-
-From the figure \ref{plot z-scores vs lfdr} can be concluded that a fdr < 0.1 can be obtained for negative z-scores, smaller than -2.5 and for very large z-scores, larger than 2.5. For these z-scores, it is more likely that when rejecting the null hypotheses, a true discovery is made.
+From the figure \ref{lfdr} can be concluded that a small lfdr can be obtained for small and large z-scores (a lfdr smaller than 0.2 for z-scores smaller than -2 and larger than 2). For these z-scores, it is more likely that when rejecting the null hypotheses, a true discovery is made.
 
 # Prediction of kidney transplant rejection
 
@@ -510,6 +492,7 @@ Both are not perfectly separable.
 
 # Conclusions
 
+From the 54675 genes in the dataset, 18080 genes are differentially expressed between the two kidney groups, based on multi-scale Welch t-test at an FDR of 10%.
 
 # Appendices
 
@@ -617,7 +600,7 @@ In the scree plot \ref{plots mds} it can be seen that the two first dimensions a
 
 ### LLE (locally linear embedding)
 
-Locally linear embedding is a nonlinear dimension reduction method which finds a low-dimensional representation for each points' local neighbourhood by linearly approximating the data in each neighbourhood and returing these coordinates of lower dimension (Roweis and Saul, 2000).
+Locally linear embedding described by Roweis and Saul (2000) was performed. From figures \ref{lle} can be seen that no distinction between the accepted and rejected kidneys can be made.
 
 ```{r lle, eval=TRUE}
 lle <- RDRToolbox::LLE(data=GeneExpression_C, dim=3, k=50)
@@ -626,11 +609,9 @@ plot(lle[,1],lle[,2],col=RejectionStatus$Reject_Status+1,pch=19)
 plot(lle[,2],lle[,3],col=RejectionStatus$Reject_Status+1,pch=19)
 ```
 
-From figures \ref{lle} can be seen that no distinction between the accepted and rejected kidneys can be made.
-
 ### ISOMAP
 
-ISOMAP is a a nonlinear dimension reduction technique presented by Tenenbaum, Silva and Langford in 2000. It preserves rather the global properties of the data. It uses  multidimensional scaling but then with incorporating the geodesic distances imposed by a weighted graph of the k neighbours of each point.
+ISOMAP presented by Tenenbaum, Silva and Langford in 2000 is performed. The parameter k is varied manually so that the maps are optimal. From figure \ref{ISOMAP} can be seen that with ISOMAP, it is also not possible to make a distinction between the group of accepted and rejected kidneys.
 
 ```{r ISOMAP, eval=TRUE}
 IM <- RDRToolbox::Isomap(data=GeneExpression_C, dims=3, k=30)
@@ -643,12 +624,9 @@ plot(IM$dim3[,2],IM$dim3[,3],col=RejectionStatus$Reject_Status+1,pch=19)
 RDRToolbox::Isomap(data=GeneExpression_C, dims=1:10, k=30, plotResiduals=TRUE)
 ```
 
-The parameter k is varied manually so that the maps are optimal. From figure \ref{ISOMAP} can be seen that with ISOMAP, it is also not possible to make a distinction between the group of accepted and rejected kidneys.
-
-
 ### Sammon mapping
 
-Sammon mapping is also a nonlinear dimension reduction method. The cost function of the Sammon method is similar to that of MDS, except that it is adapted by dividing the squared error in the representation of each pairwise Euclidean distance by the original Euclidean distance in the high-dimensional space. In this way, local structure is better preserved than in MDS. The result is in figures \ref{sammon}: no distinction can be made between the two groups.
+Sammon mapping presented by Sammon (1969). The result is in figures \ref{sammon}: no distinction can be made between the two groups.
 
 ```{r sammon}
 sammon <- MASS::sammon(dist(GeneExpression_C), k=3, niter=100)
@@ -658,18 +636,16 @@ plot(sammon$points[,2], sammon$points[,3], type = "p", col=RejectionStatus$Rejec
 
 ### Diffusion maps
 
-Diffusion mapping is also a nonlinear dimension reduction method based on the eigenvectors and eigenvalues of the data. The global strucure of the data is mapped by integration of local similarities at different scales. It works with probablities of point x randomly walking to y, and is based on the heat diffusion equation.
+Diffusion mapping was presented by Nadler et al (2006) and LAfon and Lee (2006). From figure \ref{diffusion}, no distinction between the two groups can be made with diffusion maps.
 
 ```{r diffusion}
 DiffusionMap <- diffusionMap::diffuse(dist(GeneExpression_C), maxdim=3)
 plot(DiffusionMap$X, type='p', col=RejectionStatus$Reject_Status+1, pch=19)
 ```
 
-From figure \ref{diffusion}, no distinction between the two groups can be made with diffusion maps.
-
 ### t-SNE
 
-t-stochastic neighbor embedding is a dimension reduction technique for visualising high dimensional data with a focus on preserving the local structure. The resulting plot can be seen in figure \ref{tsne} and indicates again that a simple distinction between the two groups cannot be made. Yet, there seems to be roughly two groups that differ in heterogeneity: one largely heterogeneous group (upwards left in the plot) and one group that is less heterogeneous, though far from homogeneous (middle to downward right in the plot).
+t-stochastic neighbor embedding is presented by Van Den Maaten and Hilton (2008). The resulting plot can be seen in figure \ref{tsne} and indicates again that a simple distinction between the two groups cannot be made. Yet, there seems to be roughly two groups that differ in heterogeneity: one largely heterogeneous group and one group that is less heterogeneous, though far from homogeneous.
 
 ```{r tsne, fig.cap="Two dimensional representation of the data through application of t-SNE"}
 gene_dist <- dist(GeneExpression_C)
@@ -718,7 +694,20 @@ for (j in Selection) {
 
 Benjamini Y and Hochberg Y, 1995. Controlling The False Discovery Rate - A Practical And Powerful Approach To Multiple Testing. Journal of the Royal Statistical Society. Series B: Methodological 57, 289-300.
 
+Lafon S and Lee AB, 2006. Diffusion maps and coarse-graining: A unified framework for dimensionality
+reduction, graph partitioning, and data set parameterization. IEEE Transactions on Pattern
+Analysis and Machine Intelligence, 28, 1393–1403.
+
+Nadler B, Lafon S, Coifman RR, and Kevrekidis IG, 2006. Diffusion maps, spectral clustering and
+the reaction coordinates of dynamical systems. Applied and Computational Harmonic Analysis:
+Special Issue on Diffusion Maps and Wavelets, 21, 113–127.
+
 Roweis ST and Saul LK, 2000. Nonlinear dimensionality reduction by locally linear embedding. Science, 290, 2323-2326.
 
+Sammon JW, 1969. A nonlinear mapping for data structure analysis. IEEE Transactions on Computers,
+18, 401–409.
+
 Tenenbaum JB, De Silva V and Langford JC, 2000. A global geometric framework for nonlinear dimensionality reduction. Science, 290, 2319-2323.
+
+Van Der Maaten L and Hilton G, 2008. Visualising data using t-SNE. Journal of Machine Learning Research, 9, 2579-2605.
 
