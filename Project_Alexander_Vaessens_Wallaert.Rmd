@@ -9,7 +9,7 @@ author:
   - Steven Wallaert^[steven.wallaert@ugent.be]
 date: "`r format(Sys.Date(), '%d %m %Y')`"
 output:
-  pdf_document: 
+  bookdown::pdf_document2: 
     fig_caption: yes
     number_sections: yes
     toc: yes
@@ -44,8 +44,8 @@ library(tsne)
 library(locfdr)
 
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE,
-                      fig.width=6, fig.height=4)
-options(scipen = 99)
+                      fig.width=6, fig.height=4, cache = TRUE)
+options(scipen = 9)
 set.seed(321)
 ```
 
