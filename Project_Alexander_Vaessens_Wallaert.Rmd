@@ -9,14 +9,14 @@ author:
   - Steven Wallaert^[steven.wallaert@ugent.be]
 date: "`r format(Sys.Date(), '%d %m %Y')`"
 output:
+  pdf_document: 
+    fig_caption: yes
+    number_sections: yes
+    toc: yes
   html_document:
     df_print: paged
     toc: yes
     toc_depth: '3'
-  pdf_document: 
-    number_sections: yes
-    toc: yes
-    fig_caption: true
   word_document:
     toc: yes
     toc_depth: '3'
@@ -70,7 +70,7 @@ all.equal(row.names(GeneExpression), as.character(RejectionStatus$Patient_ID))
 ```
 # Abbreviations
 
-```{r}
+```{r, results = "asis"}
 abbreviation <- c('AUC','IQR', 'LDA','LLE', 'PCA', 'sd')
 meaning <-
   c('Area under the curve',
@@ -84,7 +84,7 @@ abb_table <- data.frame(abbreviation, meaning)
 
 knitr::kable(abb_table,
              align = 'l',
-             col.names = c('abbreviation', 'meaning'))
+             col.names = c('abbreviation', 'meaning'),format="latex")
 ```
 
 
@@ -140,7 +140,7 @@ ggplot(basics_long, aes(value, fill = reject)) +
 
 Multiple methods for exploration and visualisation of high dimensional data were applied (sparse PCA, MDS, sparse LDA, LLE, ISOMAP, Sammon Mapping, Diffusion maps, and t-SNE), yet without clear results. Because the sparse LDA gave the best results we discuss the results here and refer to the appendices \ref{MDS} to \ref{tsne} for the results of the other techniques.
 
-```{r sparse lda, echo=FALSE}
+```{r sparse lda}
 id.all <- numeric()
 loadings <- numeric()
 variables_per_part <- dim(GeneExpression)[2]/3
@@ -306,7 +306,7 @@ pred_mod_lasso <-
 plot(m.cv, xlab = TeX(" $ log(\\gamma ) $ "))
 ```
 
-In the figure above, one can see that for $\gamma$ equal to   `r m.cv$lambda.min`  , the area under the curve ( _AUC_ ) is maximal (`r round(performance(pred_m, "auc")@y.values[[1]], digits = 3)`) for the train dataset based on a 10-fold cross-validation over the train dataset. 
+In the figure above, one can see that for $\gamma$ equal to   `r m.cv$lambda.min`  , the area under the curve ( _AUC_ ) is maximal (`r round(performance(pred_mod_lasso, "auc")@y.values[[1]], digits = 3)`) for the train dataset based on a 10-fold cross-validation over the train dataset. 
 
 The ROC curve, estimated with the cross-validation dataset, is shown below:
 
@@ -319,10 +319,10 @@ plot(perf)
 This model only uses 
 `r length(lasso_selection) ` 
 of the genes: `r lasso_selection`.
-Compared to the interesting genes found with the Sparse LDA method: `r intersect(lasso_selection, best_116)`
+Compared to the interesting genes found with the Sparse LDA method: `r intersect(lasso_selection, best_all)`
 This is a considerable dimensional reduction.
 This is illustrated below. This figure shows the loadings of the 
-`r length(unique(summary(coef(m))[-1,1])) ` 
+`r length(unique(summary(coef(mod_lasso))[-1,1])) ` 
 selected values.
 
 ```{r summary lasso, fig.width=4, fig.height=3.5, eval=TRUE, echo=FALSE}
@@ -454,7 +454,7 @@ Below, the F1 graph, the confusion matrix for the PCR model with cutoff c = 0.21
 
 The confusion matrix shows no false negatives at all, but the number of false positives is high.
 
-```{r}
+```{r, results= "asis"}
 perf_f1 <- performance(pred_mod_lasso, "f")
 plot(perf_f1)
 pred <- predict(mod_lasso,newx = X_test,type = 'response')
@@ -463,7 +463,7 @@ ypred <- factor(as.numeric(pred > cutoff), levels = c(0, 1))
 tab <- table(Y_test, ypred)
 colnames(tab) <- c('accept predicted', 'reject predicted')
 rownames(tab) <- c('accept observed', 'reject observed')
-knitr::kable(tab, digits = 0, align = 'l')
+knitr::kable(tab, digits = 0, align = 'l', format = "latex")
 ```
 This confustionmatrix clearly shows a sensitivity of `r tab[4] / (tab[3] + tab[4])`, and a specificity of `r tab[1] / (tab[1] + tab[2])`. 
 In short, this predictor seems to strike a balance between both, but the performance is not perfect.
@@ -484,6 +484,11 @@ From the 54675 genes in the dataset, 18080 genes are differentially expressed be
 ## Exploration methods for high dimensional data
 
 ### Sparse principle components analysis
+
+```{r}
+knitr::opts_chunk$set(eval = FALSE)
+```
+
 
 ```{r sparse pca}
 SPC.cv(GeneExpression_C)
@@ -587,7 +592,7 @@ In the scree plot \ref{plots mds} it can be seen that the two first dimensions a
 
 Locally linear embedding described by Roweis and Saul (2000) was performed. From figures \ref{lle} can be seen that no distinction between the accepted and rejected kidneys can be made.
 
-```{r lle, eval=TRUE}
+```{r lle}
 lle <- RDRToolbox::LLE(data=GeneExpression_C, dim=3, k=50)
 labels = c("first component", "second component", 'third component')
 plot(lle[,1],lle[,2],col=RejectionStatus$Reject_Status+1,pch=19)
@@ -598,7 +603,7 @@ plot(lle[,2],lle[,3],col=RejectionStatus$Reject_Status+1,pch=19)
 
 ISOMAP presented by Tenenbaum, Silva and Langford in 2000 is performed. The parameter k is varied manually so that the maps are optimal. From figure \ref{ISOMAP} can be seen that with ISOMAP, it is also not possible to make a distinction between the group of accepted and rejected kidneys.
 
-```{r ISOMAP, eval=TRUE}
+```{r ISOMAP}
 IM <- RDRToolbox::Isomap(data=GeneExpression_C, dims=3, k=30)
 labelsIM <- c("first component", "second component", "third component")
 plot(IM$dim3[,1],IM$dim3[,2],col=RejectionStatus$Reject_Status+1,pch=19)
