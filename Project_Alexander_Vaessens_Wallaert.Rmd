@@ -449,10 +449,10 @@ AUC is `r round(performance(pred_mod, "auc")@y.values[[1]], digits = 3)`.
 ## Final model evaluation
 
 The model performance in terms of AUC is similar for the 3 models.
-Since LASSO regression is the simplest model, this is preferred.
+Since Lasso regression is the simplest model, this is preferred.
 By chosing cutoff c = 0.21, we can achieve a F1-score of over 0.7. 
 This is represented on the following graph. 
-Below, the F1 graph, the confusion matrix for the PCR model with cutoff c = 0.21 is shown.
+Below, the F1 graph, the confusion matrix for the Lasso model with cutoff c = 0.21 is shown.
 
 The confusion matrix shows no false negatives at all, but the number of false positives is high.
 
