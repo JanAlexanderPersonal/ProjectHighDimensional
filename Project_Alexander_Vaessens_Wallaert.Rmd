@@ -84,7 +84,7 @@ abb_table <- data.frame(abbreviation, meaning)
 
 knitr::kable(abb_table,
              align = 'l',
-             col.names = c('abbreviation', 'meaning'),format="latex")
+             col.names = c('Abbreviation', 'Meaning'),format="latex")
 ```
 
 
@@ -266,7 +266,7 @@ Three approaches are compared: lasso, ridge regression and principle component r
 These approaches will be compared based on the AUC.
 The final modelling approach is chosen as the one that shows the largest cross-validated AUC.
 The cutoff is chosen based on the F1-score.
-The dataset is split into a training and test dataset.
+The dataset is split into a training (70% of the data) and test dataset (30% of the data).
 
 ```{r train test split}
 ind_train <-
@@ -281,6 +281,7 @@ X_test <- as.matrix(GeneExpression_C[-ind_train,])
 ## Lasso regression
 
 ```{r lasso}
+set.seed(321)
 m.cv <-
   cv.glmnet(
     x = X_train,
@@ -306,7 +307,7 @@ pred_mod_lasso <-
 plot(m.cv, xlab = TeX(" $ log(\\gamma ) $ "))
 ```
 
-In the figure above, one can see that for $\gamma$ equal to   `r m.cv$lambda.min`  , the area under the curve ( _AUC_ ) is maximal (`r round(performance(pred_mod_lasso, "auc")@y.values[[1]], digits = 3)`) for the train dataset based on a 10-fold cross-validation over the train dataset. 
+In the figure above, one can see that for $\gamma$ equal to   `r round(m.cv$lambda.min, digits = 2)`  , the area under the curve ( _AUC_ ) is maximal (`r round(performance(pred_mod_lasso, "auc")@y.values[[1]], digits = 2)`) for the train dataset based on a 10-fold cross-validation over the train dataset. 
 
 The ROC curve, estimated with the cross-validation dataset, is shown below:
 
@@ -319,7 +320,6 @@ plot(perf)
 This model only uses 
 `r length(lasso_selection) ` 
 of the genes: `r lasso_selection`.
-Compared to the interesting genes found with the Sparse LDA method: `r intersect(lasso_selection, best_all)`
 This is a considerable dimensional reduction.
 This is illustrated below. This figure shows the loadings of the 
 `r length(unique(summary(coef(mod_lasso))[-1,1])) ` 
@@ -341,6 +341,7 @@ plot(
 ## Ridge regression
 
 ```{r ridge, eval=TRUE, echo=FALSE}
+set.seed(321)
 m.cv <-
   cv.glmnet(
     x = X_train,
@@ -366,7 +367,7 @@ pred_m <-
 plot(m.cv, xlab = TeX(" $ log(\\gamma ) $ "))
 ```
 
-Likewise as for the Lasso regression, for $\gamma$ equal to `r m.cv$lambda.min`, the optimal _AUC_ (`r round(performance(pred_m, "auc")@y.values[[1]], digits = 3)`) is obtained. 
+Likewise as for the Lasso regression, for $\gamma$ equal to `r round(m.cv$lambda.min, digits = 2)`, the optimal _AUC_ (`r round(performance(pred_m, "auc")@y.values[[1]], digits = 2)`) is obtained. 
 
 The ROC curve, estimated with the cross-validation dataset, is shown below:
 
@@ -378,6 +379,7 @@ plot(perf)
 ## Principal component regression
 
 ```{r PCR CV, warning=FALSE}
+set.seed(321)
 trapezoid_integration <- function(x, y) {
   elements <- (y[-1] + y[-length(y)]) * abs(diff(x))
   sum(elements/2)
@@ -425,9 +427,9 @@ for (i in 1:max.n.comps) {
 }
 
 plot(1:max.n.comps, cv.glm.pcr, type = "l", main = 'Cross validated AUC for PCA regression')
-npc.min <- which.min(cv.glm.pcr)
+npc.max <- which.max(cv.glm.pcr)
 npc.val <- cv.glm.pcr[npc.min]
-abline(v = npc.min, col = 2)
+abline(v = npc.max, col = 2)
 ```
 
 
@@ -446,9 +448,9 @@ AUC is `r round(performance(pred_mod, "auc")@y.values[[1]], digits = 3)`.
 
 ## Final model evaluation
 
-The model performance in terms of AUC is extremely similar for the 3 models.
+The model performance in terms of AUC is similar for the 3 models.
 Since LASSO regression is the simplest model, this is preferred.
-By chosing cutoff c = 0.23, we can achieve a F1-score of over 0.7. 
+By chosing cutoff c = 0.21, we can achieve a F1-score of over 0.7. 
 This is represented on the following graph. 
 Below, the F1 graph, the confusion matrix for the PCR model with cutoff c = 0.21 is shown.
 
@@ -458,14 +460,14 @@ The confusion matrix shows no false negatives at all, but the number of false po
 perf_f1 <- performance(pred_mod_lasso, "f")
 plot(perf_f1)
 pred <- predict(mod_lasso,newx = X_test,type = 'response')
-cutoff <- .23
+cutoff <- .21
 ypred <- factor(as.numeric(pred > cutoff), levels = c(0, 1))
 tab <- table(Y_test, ypred)
 colnames(tab) <- c('accept predicted', 'reject predicted')
 rownames(tab) <- c('accept observed', 'reject observed')
 knitr::kable(tab, digits = 0, align = 'l', format = "latex")
 ```
-This confustionmatrix clearly shows a sensitivity of `r tab[4] / (tab[3] + tab[4])`, and a specificity of `r tab[1] / (tab[1] + tab[2])`. 
+This confustionmatrix clearly shows a sensitivity of `r round(tab[4] / (tab[3] + tab[4]), digits = 2)`, and a specificity of `r round(tab[1] / (tab[1] + tab[2]), digits = 2)`. 
 In short, this predictor seems to strike a balance between both, but the performance is not perfect.
 If a person tests positive, there is still a considerable chance the kidney will not be rejected.
 
