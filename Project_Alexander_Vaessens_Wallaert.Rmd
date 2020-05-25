@@ -78,12 +78,12 @@ meaning <-
   c('Area under the curve',
     'Interquartile range',
     'Linear discriminant analysis',
-    'Least absolute shrinkage and selection operator',
+    'Least absolute shrinkage and \nselection operator',
     'Locally linear embedding',
     'Principle component analysis',
-    'Receiver operating characteristic curve',
+    'Receiver operating characteristic \ncurve',
     'Standard deviation',
-    't-distributed stochastic neighbor embedding')
+    't-distributed stochastic neighbor \nembedding')
 
 abb_table <- data.frame(Abbreviation = abbreviation, Meaning = meaning)
 
@@ -457,23 +457,29 @@ AUC is `r round(performance(pred_mod, "auc")@y.values[[1]], digits = 3)`.
 
 ## Final model evaluation
 
+```{r}
+perf_f1 <- performance(pred_mod_lasso, "f")
+plot(perf_f1)
+pred <- predict(mod_lasso,newx = X_test,type = 'response')
+cutoff <- perf_f1@x.values[[1]][which.max(perf_f1@y.values[[1]])]
+abline(v=cutoff, col =2)
+```
+
+
 The model performance in terms of AUC is similar for the 3 models.
 Since LASSO regression is the simplest model, this is preferred.
-By chosing cutoff c = 0.21, we can achieve a F1-score of over 0.7. 
+By chosing cutoff c = `r round(cutoff, 3)`, we can achieve a F1-score of `r round(max(perf_f1@y.values[[1]], na.rm = T), 3)`. 
 This is represented on the following graph. 
-Below, the F1 graph, the confusion matrix for the Lasso model with cutoff c = 0.21 is shown.
+Below, the F1 graph, the confusion matrix for the Lasso model with cutoff c = `r round(cutoff, 3)` is shown.
 
 The confusion matrix shows no false negatives at all, but the number of false positives is high.
 
 ```{r, results= "asis"}
-perf_f1 <- performance(pred_mod_lasso, "f")
-plot(perf_f1)
-pred <- predict(mod_lasso,newx = X_test,type = 'response')
-cutoff <- .21
+
 ypred <- factor(as.numeric(pred > cutoff), levels = c(0, 1))
 tab <- table(Y_test, ypred)
-colnames(tab) <- c('accept predicted', 'reject predicted')
-rownames(tab) <- c('accept observed', 'reject observed')
+colnames(tab) <- c('accept pred', 'reject pred')
+rownames(tab) <- c('accept obs', 'reject obs')
 #knitr::kable(tab, digits = 0, align = 'l', format = "latex")
 xtable(tab)
 ```
