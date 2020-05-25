@@ -48,6 +48,7 @@ knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE,
                       fig.width=6, fig.height=4, cache = TRUE)
 options(scipen = 9)
 options(xtable.comment = FALSE)
+options(xtable.sanitize.text.function=identity)
 set.seed(321)
 ```
 
@@ -78,19 +79,19 @@ meaning <-
   c('Area under the curve',
     'Interquartile range',
     'Linear discriminant analysis',
-    'Least absolute shrinkage and \nselection operator',
+    'Least absolute shrinkage and \\\\selection operator',
     'Locally linear embedding',
     'Principle component analysis',
-    'Receiver operating characteristic \ncurve',
+    'Receiver operating characteristic \\\\curve',
     'Standard deviation',
-    't-distributed stochastic neighbor \nembedding')
+    't-distributed stochastic neighbor \\\\embedding')
 
 abb_table <- data.frame(Abbreviation = abbreviation, Meaning = meaning)
 
 # knitr::kable(abb_table,
 #              align = 'l',
 #              col.names = c('Abbreviation', 'Meaning'),format="latex")
-xtable(abb_table)
+print(xtable(abb_table), include.rownames=FALSE)
 ```
 
 
