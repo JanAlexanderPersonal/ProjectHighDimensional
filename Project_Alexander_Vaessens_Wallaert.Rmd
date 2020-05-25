@@ -210,7 +210,7 @@ The main directions of variability in the gene expression dataset do not coincid
 
 In order to find out which genes are differentially expressed between rejection status groups null hypotheses were tested against alternative hypotheses as follows. 
 
-$$\left.\begin{aligned} H_{0,i}: \mu_{rejected, i} = \mu_{accepted,i} \\ H_{a,i}: \mu_{rejected, i}\neq \mu_{accepted,i} \end{aligned} \right \} \quad with \space i = \{1,\dots,54675\} $$
+$$\left.\begin{aligned} H_{0,i}: \mu_{rejected, i} = \mu_{accepted,i} \\ H_{a,i}: \mu_{rejected, i}\neq \mu_{accepted,i} \end{aligned} \right \} \space with \space i = \{1,\dots,54675\} $$
 
 In these hypotheses $\mu_{rejected,i}$ and $\mu_{accepted,i}$ are the population means of the gene expression level of the ith gene in the rejected and accepted kidney rejection group respectively. Before testing, a visual inspection of 30 QQ plots, from 15 randomly drawn variables, was done to assess whether the variables follow a normal distribution for both groups separately. These QQ plots showed that some genes were normally distributed, but also that many genes were not. 
 
@@ -323,14 +323,14 @@ In the figure above, one can see that for $\gamma$ equal to   `r round(m.cv$lamb
 The ROC curve, estimated with the cross-validation dataset, is shown below:
 
 ```{r performance lasso}
-lasso_selection <- unique(summary(coef(mod_lasso))[-1, 1])
+lasso_selection <- unique(summary(coef(mod_lasso))[-1, 1])-1
 perf <- performance(pred_mod_lasso, 'sens', 'fpr')
 plot(perf)
 ```
 
 This model only uses 
 `r length(lasso_selection) ` 
-of the genes: `r lasso_selection`.
+of the genes: `r lasso_selection`. Interestingly genes `r intersect(best_all, lasso_selection)` were also detected by the sparse LDA.
 This is a considerable dimensional reduction.
 This is illustrated below. This figure shows the loadings of the 
 `r length(unique(summary(coef(mod_lasso))[-1,1])) ` 
