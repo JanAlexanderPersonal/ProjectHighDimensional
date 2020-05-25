@@ -194,7 +194,7 @@ tibble(scores = Z, reject = factor(RejectionStatus$Reject_Status, labels = c("Ac
   scale_fill_manual(values = c("#4DBBD5", "#E64B35")) +
   labs(fill = "Rejection status") +
   theme(legend.position = "bottom") +
-  geom_linerange(inherit.aes = F, aes(x=scores), ymin = 0, ymax=0.05 )
+  geom_linerange(inherit.aes = F, aes(x=scores), ymin = 0, ymax=0.02 )
 
 ```
 
@@ -233,9 +233,9 @@ for (i in seq(1,54675)){
 }
 ```
 
-To summarise the results we constructed a histogram of the adjusted p-values or q-values. 
+To summarise the results we constructed a histogram of the adjusted p-values or q-values (see figure \@ref(fig:histogram)). 
 
-```{r histogram p-values, fig.cap="Histograms of regular and adjusted p-values. The dashed line indicates the threshold."}
+```{r histogram, fig.cap="Histograms of adjusted p-values. The dashed line indicates the threshold"}
 adjusted <- p.adjust(AllTestResults[,"p-value"], method = "BH")
 rejections <- sum(adjusted < 0.1)
 
@@ -248,7 +248,7 @@ rejections <- sum(adjusted < 0.1)
 df.p <- tibble(adjusted)
 
 ggplot(df.p, aes(adjusted)) +
-  geom_histogram(color="grey70") +
+  geom_histogram(color="grey70", binwidth = 0.025, boundary = 0.1) +
 #  facet_grid(.~type) +
   theme_classic() +
   geom_vline(xintercept = 0.1, color = "red", linetype = "dashed") +
@@ -262,7 +262,7 @@ The histogram shows a non-uniform distribution. More importantly, it tells there
 
 Next, the normalised test statistics (z-scores) are plotted and compared to the local false discovery rate.
 
-```{r lfdr}
+```{r lfdr, fig.cap="Histogram of normalised test statistics. Approximated density (green line overlay). Theoretical null distribution density (blue dashed line overlay). True discovery likelihood indication (purple overlay). "}
 z_scores <- qnorm(pt(AllTestResults[,'test-statistic'],df=AllTestResults[i,'degreeFreedom']))
 fdr <- locfdr(z_scores,plot=0,nulltype=0)$fdr
 z.locfdr <- locfdr(z_scores, nulltype = 0, plot = 1)
@@ -289,9 +289,9 @@ Y_test <- as.matrix(RejectionStatus[-ind_train, 'Reject_Status'])
 X_test <- as.matrix(GeneExpression_C[-ind_train,])
 ```
 
-## Lasso regression
+## LASSO regression
 
-```{r lasso}
+```{r lasso, fig.cap="CV plot LASSO regression."}
 set.seed(321)
 m.cv <-
   cv.glmnet(
@@ -318,11 +318,11 @@ pred_mod_lasso <-
 plot(m.cv, xlab = TeX(" $ log(\\gamma ) $ "))
 ```
 
-In the figure above, one can see that for $\gamma$ equal to   `r round(m.cv$lambda.min, digits = 2)`  , the area under the curve ( _AUC_ ) is maximal (`r round(performance(pred_mod_lasso, "auc")@y.values[[1]], digits = 3)`) for the train dataset based on a 10-fold cross-validation over the train dataset. 
+In figure \@ref(fig:lasso), one can see that for $\gamma$ equal to `r round(m.cv$lambda.min, digits = 2)`, the _AUC_ is maximal (`r round(performance(pred_mod_lasso, "auc")@y.values[[1]], digits = 3)`) for the train dataset based on a 10-fold cross-validation over the train dataset. 
 
-The ROC curve, estimated with the cross-validation dataset, is shown below:
+The ROC curve, estimated with the cross-validation dataset, is shown in figure \@ref(fig:performance-lasso).
 
-```{r performance lasso}
+```{r performance-lasso, fig.cap="ROC curve LASSO regression model."}
 lasso_selection <- unique(summary(coef(mod_lasso))[-1, 1])-1
 perf <- performance(pred_mod_lasso, 'sens', 'fpr')
 plot(perf)
@@ -336,7 +336,7 @@ This is illustrated below. This figure shows the loadings of the
 `r length(unique(summary(coef(mod_lasso))[-1,1])) ` 
 selected values.
 
-```{r summary lasso, eval=TRUE, echo=FALSE}
+```{r summary-lasso, fig.cap="Coefficient plot LASSO regression model."}
 plot(
   summary(coef(mod_lasso))[-1, 1],
   summary(coef(mod_lasso))[-1, 3],
@@ -351,7 +351,7 @@ plot(
 
 ## Ridge regression
 
-```{r ridge, eval=TRUE, echo=FALSE}
+```{r ridge, fig.cap="CV plot ridge regression."}
 set.seed(321)
 m.cv <-
   cv.glmnet(
@@ -380,16 +380,16 @@ plot(m.cv, xlab = TeX(" $ log(\\gamma ) $ "))
 
 Likewise as for the Lasso regression, for $\gamma$ equal to `r round(m.cv$lambda.min, digits = 2)`, the optimal _AUC_ (`r round(performance(pred_m, "auc")@y.values[[1]], digits = 3)`) is obtained. 
 
-The ROC curve, estimated with the cross-validation dataset, is shown below:
+The ROC curve, estimated with the cross-validation dataset, is shown in figure \@ref(fig:performance-ridge).
 
-```{r performance ridge}
+```{r performance-ridge, fig.cap="ROC curve ridge regression model."}
 perf <- performance(pred_m, 'sens', 'fpr')
 plot(perf)
 ```
 
 ## Principal component regression
 
-```{r PCR CV, warning=FALSE}
+```{r PCR-CV, warning=FALSE, fig.cap="CV plot PCR. The red line shows the number of principal components for which the cross-validete AUC is maximal."}
 set.seed(321)
 trapezoid_integration <- function(x, y) {
   elements <- (y[-1] + y[-length(y)]) * abs(diff(x))
@@ -437,14 +437,16 @@ for (i in 1:max.n.comps) {
     cv.glm(fitdata, mod, cost = AUC_est, K = 10)$delta[1]
 }
 
-plot(1:max.n.comps, cv.glm.pcr, type = "l", main = 'Cross validated AUC for PCA regression')
+plot(1:max.n.comps, cv.glm.pcr, type = "l", main = 'Cross validated AUC for PCA regression',
+     xlab = "Nr of principal components",
+     ylab = "AUC")
 npc.min <- which.max(cv.glm.pcr)
 npc.val <- cv.glm.pcr[npc.min]
 abline(v = npc.min, col = 2)
 ```
 
 
-```{r PCR model, warning=FALSE}
+```{r PCR-model, warning=FALSE, fig.cap="ROC curve PCR model."}
 V <- X_train.svd$v
 Z_test <- X_test %*% V
 fitdata <- data.frame(Y_train, Z_train[,1:npc.min])
@@ -455,11 +457,11 @@ perf_mod <- performance(pred_mod, "sens", "fpr")
 plot(perf_mod)
 ```
 
-AUC is `r round(performance(pred_mod, "auc")@y.values[[1]], digits = 3)`.
+The AUC for this model is `r round(performance(pred_mod, "auc")@y.values[[1]], digits = 3)`.
 
 ## Final model evaluation
 
-```{r}
+```{r final, fig.cap="Cutoff value selection based on F1 score. The red line shows the cutoff value for which the F1 is maximal."}
 perf_f1 <- performance(pred_mod_lasso, "f")
 plot(perf_f1)
 pred <- predict(mod_lasso,newx = X_test,type = 'response')
@@ -470,9 +472,9 @@ abline(v=cutoff, col =2)
 
 The model performance in terms of AUC is similar for the 3 models.
 Since LASSO regression is the simplest model, this is preferred.
-By chosing cutoff c = `r round(cutoff, 3)`, we can achieve a F1-score of `r round(max(perf_f1@y.values[[1]], na.rm = T), 3)`. 
+By chosing cutoff c = `r round(cutoff, 2)`, we can achieve a F1-score of `r round(max(perf_f1@y.values[[1]], na.rm = T), 2)`. 
 This is represented on the following graph. 
-Below, the F1 graph, the confusion matrix for the Lasso model with cutoff c = `r round(cutoff, 3)` is shown.
+Below, the F1 graph, the confusion matrix for the Lasso model with cutoff c = `r round(cutoff, 2)` is shown.
 
 The confusion matrix shows no false negatives at all, but the number of false positives is high.
 
@@ -483,9 +485,9 @@ tab <- table(Y_test, ypred)
 colnames(tab) <- c('accept pred', 'reject pred')
 rownames(tab) <- c('accept obs', 'reject obs')
 #knitr::kable(tab, digits = 0, align = 'l', format = "latex")
-xtable(tab)
+xtable(tab, caption = "Confusion matrix final model.")
 ```
-This confusionmatrix clearly shows a sensitivity of `r round(tab[4] / (tab[3] + tab[4]), digits = 2)`, and a specificity of `r round(tab[1] / (tab[1] + tab[2]), digits = 2)`. 
+This confusionmatrix clearly shows a sensitivity of `r round(tab[4] / (tab[2] + tab[4]), digits = 2)`, and a specificity of `r round(tab[1] / (tab[1] + tab[3]), digits = 2)`. 
 In short, this predictor seems to strike a balance between both, but the performance is not perfect.
 If a person tests positive, there is still a considerable chance the kidney will not be rejected.
 
