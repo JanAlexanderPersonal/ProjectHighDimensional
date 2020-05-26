@@ -172,7 +172,7 @@ for(i in 1:3){
 }
 ```
 
-The sparse LDA was performed to find potential candidate genes for future investigation. Due to computational constraints (our system ran out of memory) we needed to split the data set in 3 parts (each part consisting of 282 observations on `r dim(GeneExpression)[2]/3` genes). We considered this approach to be valid since we only used it as an exploratory tool.
+The sparse LDA was performed to find potential candidate genes for future investigation. Due to computational constraints (our system ran out of memory) we needed to split the data set in 3 parts (each part consisting of 282 observations on `r dim(GeneExpression)[2]/3` genes). We considered this approach to be reasonable since we only used it as an exploratory tool. A small simulation was performed to verify its potential as such a tool (see appendix \@ref(simulation)).
 In total `r length(id.all)` genes (or `r round(length(id.all)/dim(GeneExpression)[2]*100,1)`%) had non-zero loadings. 
 
 Because this is still a substantial amount, only the genes with loadings in absolute value larger than two standard deviations were further considered ($|v_i| > 2sd(v),$ with $i =\{1,...,116 \}$, where $v_i$ is the ith loading). This resulted in a list of `r length(id.all[which(abs(loadings) > 2*sd(loadings))])` genes: `r id.all[which(abs(loadings) > 2*sd(loadings))]`.
@@ -673,6 +673,78 @@ tibble(as.data.frame(tsne_Z), reject = factor(RejectionStatus$Reject_Status, lab
        x="",
        y="")
 ```
+
+### Simulation sparse LDA {#simulation}
+
+In order to have an idea whether sparse LDA split in 3 parts can be used as an exploratory tool we ran a small simulation. We created high dimensional data in such a way that also the split parts were high dimensional (n = 33, p = 102). We kept the numbers as low as possible to make it computationally feasible and high enough to be able to get more insight from the results. We constructed the data in such a manner that only 2 variables were predictive of the response (note this is `r round(2/102*100,1)`%, which is different from the real data: `r round(length(id.all)/dim(GeneExpression)[2]*100,1)`%). The response was constructed in such a way that approximately 27% were successes (allowing for variation).
+
+
+```{r}
+
+# helper function
+slda <-  function (x,y){
+  x_lda <- MASS::lda(x, grouping = factor(y))
+  Z_orig <- x %*% x_lda$scaling
+  
+  x_loadings <- cv.glmnet(x, Z_orig, alpha = 0.5, nfolds = 5)
+  
+  as.vector(coef(x_loadings))[-1]
+}
+
+#nr of repetitions
+nsims <- 50
+
+#output vars
+cors <- hit <- sim_sens <- prop_notinfull <- successes <- matrix(rep(NA, nsims), ncol = 1)
+
+# high dimensional setting, even when split in 3 parts
+n <- 33
+p <- 102
+
+# this is for finding a cutoff value to use in the data generation so that approx 27% would be labeled 1
+find_treshold <- function(c){
+  res <- numeric(1000)
+  for(i in 1:1000) {
+    res[i] <-mean(apply(mvtnorm::rmvnorm(n, mean = c(0,1), sigma = matrix(c(1,0.5, 0.5, 1), ncol =2)), 1, sum) >c)
+  }
+  
+  mean((res - 0.27)**2)
+}
+
+cutoff_value <- optimise(find_treshold, lower = 1, upper = 3)$minimum
+
+
+for(i in 1:nsims){
+    
+    original <- matrix(rnorm(n*(p-2)),ncol = p-2)
+    original <- cbind(mvtnorm::rmvnorm(n, mean = c(0,1), sigma = matrix(c(1,0.7, 0.7, 1), ncol =2)), original)
+    orig_y <- ifelse(apply(original[,1:2], 1, sum) > cutoff_value, 1 ,0)
+
+    parts <- c(slda(original[,1:(p/3)], orig_y), 
+               slda(original[,((p/3)+1):(2*p/3)], orig_y),
+               slda(original[,((2*p/3)+1):p], orig_y))
+    full <- slda(original, orig_y)
+    
+    
+    # correlation
+    cors[i] <- cor(full, parts)
+    # at least one hit
+    hit[i] <- length(intersect(which(full>0), which(parts>0))) > 0
+    # what proportion of "full detections" were also detected by split method? the more the better
+    sim_sens[i] <- length(intersect(which(full>0), which(parts>0)))/sum(full>0)
+    
+    # what proportion of "split detections" were not discovered by full method? the less the better
+    prop_notinfull[i] <- (sum(parts > 0) - length(intersect(which(full>0), which(parts>0))))/sum(parts>0)
+    
+    successes[i] <- sum(orig_y)
+  }
+
+```
+
+The simulation was repeated 50 times and we looked at following measures: correlation between coefficients (mean correlation =`r round(mean(cors, na.rm=T),2)`, .25^th^ and .75^th^ quantiles (`r round(quantile(cors, c(.25,.75), na.rm = T),2)`), `r sum(is.na(cors))` correlations were not computable because one or both of the methods gave only 1 or no coefficients), proportion of simulations in which at least 1 variable was detected by both methods (`r round(mean(hit),2)`), proportion of variables detected by the full method that also were detected by the split method (mean proportion = `r round(mean(sim_sens, na.rm=T),2)`, .25^th^ and .75^th^ quantiles =(`r round(quantile(sim_sens, c(.25,.75), na.rm = T),2)`, higher is better), and proportion of variables detected by the split method that weren't detected by the full method (mean proportion =`r round(mean(prop_notinfull, na.rm=T),2)`, .25^th^ and .75^th^ quantiles (`r round(quantile(prop_notinfull, c(.25,.75), na.rm = T),2)`, lower is better).
+
+Although this not a formal way of making a comparison, we feel confident in using this approach, albeit only as an exploratory tool. Please note that we don't claim that the method is valid.
+
 
 ## QQ-plots
 
