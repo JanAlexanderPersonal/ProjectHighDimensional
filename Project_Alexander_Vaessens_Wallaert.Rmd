@@ -331,20 +331,12 @@ plot(perf)
 This model only uses 
 `r length(lasso_selection) ` 
 of the genes: `r colnames(GeneExpression)[lasso_selection]`.
-This is a considerable dimensional reduction.
-This is illustrated below. This figure shows the loadings of the 
-`r length(unique(summary(coef(mod_lasso))[-1,1])) ` 
-selected values.
+This is a considerable dimensional reduction. The following table shows the loadings of the selected values.
 
 ```{r summary-lasso, fig.cap="Coefficient plot LASSO regression model."}
-plot(
-  summary(coef(mod_lasso))[-1, 1],
-  summary(coef(mod_lasso))[-1, 3],
-  cex = 1,
-  pch = 3,
-  xlab = 'gene index' ,
-  ylab = TeX(" $ \\hat{\\beta} $ ")
-)
+table <-  tibble()
+table$genes <- unlist(colnames(GeneExpression)[summary(coef(mod_lasso))[-1, 1]])
+table$loading <- summary(coef(mod_lasso))[-1, 3]
 ```
 
 
