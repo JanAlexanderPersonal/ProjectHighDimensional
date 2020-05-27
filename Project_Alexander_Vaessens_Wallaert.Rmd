@@ -275,7 +275,7 @@ Fromthe graph in figure \@ref(fig:lfdr) can be concluded that a small lfdr can b
 The objective of this final part is to construct a classifier for kidney acceptance or rejection based on the measured gene expressions.
 Three approaches are compared: lasso, ridge regression and principle component regression. 
 These approaches will be compared based on the AUC.
-The final modelling approach is chosen as the one that shows the largest cross-validated AUC.
+The final modelling approach is chosen as the one that shows the largest AUC obtained on the test dataset.
 The cutoff is chosen based on the F1-score.
 The dataset is split into a training (70% of the data) and test dataset (30% of the data).
 
