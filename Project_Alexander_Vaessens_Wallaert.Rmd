@@ -676,7 +676,7 @@ tibble(as.data.frame(tsne_Z), reject = factor(RejectionStatus$Reject_Status, lab
 
 ### Simulation sparse LDA {#simulation}
 
-In order to have an idea whether sparse LDA split in 3 parts can be used as an exploratory tool we ran a small simulation. We created high dimensional data in such a way that also the split parts were high dimensional (n = 33, p = 102). We kept the numbers as low as possible to make it computationally feasible and high enough to be able to get more insight from the results. We constructed the data in such a manner that only 2 variables were predictive of the response (note this is `r round(2/102*100,1)`%, which is different from the real data: `r round(length(id.all)/dim(GeneExpression)[2]*100,1)`%). The response was constructed in such a way that approximately 27% were successes (allowing for variation).
+In order to have an idea whether sparse LDA split in 3 parts can be used as an exploratory tool we ran a small simulation. We simulated high dimensional data in such a way that also the split parts were high dimensional (n = 33, p = 102). We kept the number of observations and variables as low as possible to make it computationally feasible and still high enough to be able to get some insights from the results. We constructed the data in such a manner that only 2 variables were predictive of the response (note this is `r round(2/102*100,1)`%, which is different from the real data: `r round(length(id.all)/dim(GeneExpression)[2]*100,1)`%). The response was constructed in such a way that approximately 27% were successes (allowing for variation over simulation repetitions).
 
 
 ```{r}
