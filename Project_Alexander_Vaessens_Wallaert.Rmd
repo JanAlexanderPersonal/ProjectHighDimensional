@@ -335,8 +335,12 @@ This is a considerable dimensional reduction. The following table shows the load
 
 ```{r summary-lasso, fig.cap="Coefficient plot LASSO regression model."}
 table <-  tibble()
-table$genes <- unlist(colnames(GeneExpression)[summary(coef(mod_lasso))[-1, 1]])
-table$loading <- summary(coef(mod_lasso))[-1, 3]
+genes_lasso <- append("intercept", colnames(GeneExpression)[lasso_selection])
+loading_lasso <- summary(coef(mod_lasso))[, 3]
+
+table <- tibble(Genes = genes_lasso, "Parameter value" = loading_lasso)
+
+xtable(table, caption = "Coefficients LASSO model")
 ```
 
 
