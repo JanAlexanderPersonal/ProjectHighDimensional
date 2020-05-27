@@ -176,7 +176,7 @@ for(i in 1:3){
 The sparse LDA was performed to find potential candidate genes for future investigation. Due to computational constraints (our system ran out of memory) we needed to split the data set in 3 parts (each part consisting of 282 observations on `r dim(GeneExpression)[2]/3` genes). We considered this approach to be reasonable since we only used it as an exploratory tool. A small simulation was performed to verify its potential as such a tool (see appendix \@ref(simulation)).
 In total `r length(id.all)` genes (or `r round(length(id.all)/dim(GeneExpression)[2]*100,1)`%) had non-zero loadings. 
 
-Because this is still a substantial amount, only the genes with loadings in absolute value larger than two standard deviations were further considered ($|v_i| > 2sd(v),$ with $i =\{1,...,116 \}$, where $v_i$ is the ith loading). This resulted in a list of `r length(id.all[which(abs(loadings) > 2*sd(loadings))])` genes: `r id.all[which(abs(loadings) > 2*sd(loadings))]`.
+Because this is still a substantial amount, only the genes with loadings in absolute value larger than two standard deviations were further considered ($|v_i| > 2sd_v,$ with $i =\{1,...,116 \}$, $sd_v$ the standard deviation of the loadings, and $v_i$ the ith loading). This resulted in a list of `r length(id.all[which(abs(loadings) > 2*sd(loadings))])` genes: `r colnames(GeneExpression)[id.all[which(abs(loadings) > 2*sd(loadings))]]`.
 
 By using these gene's loadings we calculated the scores of the linear discriminant for every sample and used these to construct the following graph. 
 
@@ -207,11 +207,11 @@ Although differences between groups could be found within the data, no articulat
 
 The main directions of variability in the gene expression dataset do not coincide with the separation between the rejection status groups. Nevertheless, certain genes were identified as potentially closely related to the differentiation between the two groups using sparse LDA.
 
-# Differentially expressed genes between kidney rejection groups
+# Testing for differential expression
 
 In order to find out which genes are differentially expressed between rejection status groups null hypotheses were tested against alternative hypotheses as follows. 
 
-$$\left.\begin{aligned} H_{0,i}: \mu_{rejected, i} = \mu_{accepted,i} \\ H_{a,i}: \mu_{rejected, i}\neq \mu_{accepted,i} \end{aligned} \right \} \space with \space i = \{1,\dots,54675\} $$
+$$\left.\begin{aligned} H_{0,i}: \mu_{rejected, i} = \mu_{accepted,i} \\ H_{a,i}: \mu_{rejected, i}\neq \mu_{accepted,i} \end{aligned} \right \} \space  \space i = \{1,\dots,54675\} $$
 
 In these hypotheses $\mu_{rejected,i}$ and $\mu_{accepted,i}$ are the population means of the gene expression level of the ith gene in the rejected and accepted kidney rejection group respectively. Before testing, a visual inspection of 30 QQ plots, from 15 randomly drawn variables, was done to assess whether the variables follow a normal distribution for both groups separately. These QQ plots showed that some genes were normally distributed, but also that many genes were not. 
 
@@ -332,16 +332,16 @@ plot(perf)
 This model only uses 
 `r length(lasso_selection) ` 
 of the genes: `r colnames(GeneExpression)[lasso_selection]`.
-This is a considerable dimensional reduction. The following table shows the loadings of the selected values.
+This is a considerable dimensional reduction. Table \@ref(tab:lassotab) shows the loadings of the selected values.
 
-```{r summary-lasso, results="asis"}
-table <-  tibble()
+```{r lassotab, results="asis"}
+
 genes_lasso <-   str_replace_all(append("intercept", colnames(GeneExpression)[lasso_selection]), "_", "-")
 loading_lasso <- summary(coef(mod_lasso))[, 3]
 
 table <- tibble(Genes = genes_lasso, "Parameter value" = loading_lasso)
 
-xtable(table, caption = "Coefficients LASSO model")
+knitr::kable(table, caption = "Coefficients LASSO model", format = "latex")
 ```
 
 
