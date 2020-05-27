@@ -436,18 +436,18 @@ for (i in 1:max.n.comps) {
 plot(1:max.n.comps, cv.glm.pcr, type = "l", main = 'Cross validated AUC for PCA regression',
      xlab = "Nr of principal components",
      ylab = "AUC")
-npc.min <- which.max(cv.glm.pcr)
-npc.val <- cv.glm.pcr[npc.min]
-abline(v = npc.min, col = 2)
+npc.max <- which.max(cv.glm.pcr)
+npc.val <- cv.glm.pcr[npc.max]
+abline(v = npc.max, col = 2)
 ```
 
 
 ```{r PCR-model, warning=FALSE, fig.cap="ROC curve PCR model."}
 V <- X_train.svd$v
 Z_test <- X_test %*% V
-fitdata <- data.frame(Y_train, Z_train[,1:npc.min])
+fitdata <- data.frame(Y_train, Z_train[,1:npc.max])
 mod <- glm(Y_train ~ ., data = fitdata)
-preddata <- data.frame(Z_test[,1:npc.min])
+preddata <- data.frame(Z_test[,1:npc.max])
 pred_mod <- prediction(predict(mod, newdata = preddata), Y_test)
 perf_mod <- performance(pred_mod, "sens", "fpr")
 plot(perf_mod)
