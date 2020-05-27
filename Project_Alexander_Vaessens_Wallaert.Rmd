@@ -501,7 +501,7 @@ Both are not perfectly separable.
 
 In the exploratory analysis we found that the 2 groups are different, but not different enough to be able to make clear distinction. Through applyication of sparse LDA a few genes were flagged as potentially interesting for further research.
 From the 54675 genes in the dataset, `r rejections` genes are differentially expressed between the two kidney groups, based on multi-scale Welch t-test at an FDR of 10%.  
-From the 3 modeling approaches used in this study, the LASSO regression gave the best results in both terms of AUC on the test data and in terms of parsimony.  Interestingly, from the selected genes by the LASSO model, the genes `r intersect(best_all, lasso_selection)` were also detected by the sparse LDA.
+From the 3 modeling approaches used in this study, the LASSO regression gave the best results both in terms of AUC (based on the test data) and in terms of parsimony.  Interestingly, from the selected genes by the LASSO model, the genes `r intersect(best_all, lasso_selection)` were also detected by the sparse LDA.
 
 # Appendices
 
