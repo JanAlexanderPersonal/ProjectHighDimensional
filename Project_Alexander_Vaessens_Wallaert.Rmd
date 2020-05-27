@@ -71,6 +71,7 @@ RejectionStatus <-
 
 all.equal(row.names(GeneExpression), as.character(RejectionStatus$Patient_ID))
 ```
+
 # Abbreviations
 
 ```{r, results = "asis"}
@@ -333,9 +334,9 @@ This model only uses
 of the genes: `r colnames(GeneExpression)[lasso_selection]`.
 This is a considerable dimensional reduction. The following table shows the loadings of the selected values.
 
-```{r summary-lasso, fig.cap="Coefficient plot LASSO regression model."}
+```{r summary-lasso, results="asis"}
 table <-  tibble()
-genes_lasso <- append("intercept", colnames(GeneExpression)[lasso_selection])
+genes_lasso <-   str_replace_all(append("intercept", colnames(GeneExpression)[lasso_selection]), "_", "-")
 loading_lasso <- summary(coef(mod_lasso))[, 3]
 
 table <- tibble(Genes = genes_lasso, "Parameter value" = loading_lasso)
