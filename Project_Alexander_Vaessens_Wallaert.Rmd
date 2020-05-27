@@ -268,7 +268,7 @@ fdr <- locfdr(z_scores,plot=0,nulltype=0)$fdr
 z.locfdr <- locfdr(z_scores, nulltype = 0, plot = 1)
 ```
 
-Fromthe graph in figure \@ref(fig:lfdr) can be concluded that a small lfdr can be obtained for small and large z-scores (a lfdr smaller than 0.2 for z-scores smaller than -2 and larger than 2). For these z-scores, it is more likely that when rejecting the null hypothesis, a true discovery is made.
+Fromthe graph in figure \@ref(fig:lfdr) can be concluded that a small lfdr can be obtained for small and large z-scores (a lfdr smaller than 0.2 for z-scores smaller than `r round(z.locfdr$z.2[1] , digits = 2)` and larger than `r round(z.locfdr$z.2[2] , digits = 2)`). For these z-scores, it is more likely that when rejecting the null hypothesis, a true discovery is made.
 
 # Prediction of kidney transplant rejection
 
@@ -323,14 +323,14 @@ In figure \@ref(fig:lasso), one can see that for $\gamma$ equal to `r round(m.cv
 The ROC curve, estimated with the cross-validation dataset, is shown in figure \@ref(fig:performance-lasso).
 
 ```{r performance-lasso, fig.cap="ROC curve LASSO regression model."}
-lasso_selection <- unique(summary(coef(mod_lasso))[-1, 1])-1
+lasso_selection <- unique(summary(coef(mod_lasso))[-1, 1])-1 # one-off due to intersect
 perf <- performance(pred_mod_lasso, 'sens', 'fpr')
 plot(perf)
 ```
 
 This model only uses 
 `r length(lasso_selection) ` 
-of the genes: `r lasso_selection`.
+of the genes: `r colnames(GeneExpression)[lasso_selection]`.
 This is a considerable dimensional reduction.
 This is illustrated below. This figure shows the loadings of the 
 `r length(unique(summary(coef(mod_lasso))[-1,1])) ` 
@@ -499,9 +499,8 @@ Both are not perfectly separable.
 
 # Conclusions
 
-In the exploratory analysis we found that the 2 groups are different, but not different enough to be able to make clear distinction. Through applyication of sparse LDA a few genes were flagged as potentially interesting for further research.
-From the 54675 genes in the dataset, `r rejections` genes are differentially expressed between the two kidney groups, based on multi-scale Welch t-test at an FDR of 10%.  
-From the 3 modeling approaches used in this study, the LASSO regression gave the best results both in terms of AUC (based on the test data) and in terms of parsimony.  Interestingly, from the selected genes by the LASSO model, the genes `r intersect(best_all, lasso_selection)` were also detected by the sparse LDA.
+In the exploratory analysis we found that the 2 groups are different, but not fully separable. Through applyication of a procedure based on the sparse LDA (adapted for running on our memory-limited hardware) a few genes were flagged as potentially interesting for further research. From the 54675 genes in the dataset, `r rejections` genes are differentially expressed between the two kidney groups, based on multi-scale Welch t-test at an FDR of 10%.  
+The 3 modeling approaches used in this study performed very similar in terms of AUC, the LASSO regression was selected for its spareseness.  Interestingly, from the selected genes by the LASSO model, the genes `r colnames(GeneExpression)[intersect(best_all, lasso_selection)]` were also detected by the sparse LDA procedure.
 
 # Appendices
 
