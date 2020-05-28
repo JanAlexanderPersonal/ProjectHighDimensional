@@ -20,9 +20,9 @@ output:
   word_document:
     toc: yes
     toc_depth: '3'
-header-includes: \usepackage{amsmath} \renewcommand{\abstractname}{Executive summary}
+header-includes: \usepackage{amsmath} \usepackage{float} \renewcommand{\abstractname}{Executive summary}
 classoption: twocolumn
-abstract: "This research examines whether some genes are responsible for a patient's likelihood of rejecting a kidney after transplantation, for the  Gene Expression Omninibus (GEO) dataset. This dataset consists of gene expression levels of 54675 genes from 282 patients. Data exploration methods show that there is no clear way to map the gene expression levels onto the kidney rejection statuses. In other words, only probabilistic claims can be made. From the 54675 genes, 18081 genes are identified as having a differential expression between the group of rejected and the group of accepted kidneys. Kidney rejection can be predicted sufficiently from the gene expressions with 17 genes."
+abstract: "This research examines whether some genes are responsible for a patient's likelihood of rejecting a kidney after transplantation, for the  Gene Expression Omninibus (GEO) dataset. This dataset consists of gene expression levels of 54675 genes from 282 patients. Data exploration methods show that there is no clear way to map the gene expression levels onto the kidney rejection statuses. In other words, only probabilistic claims can be made. From the 54675 genes, 18081 genes are identified as having a differential expression between the group of rejected and the group of accepted kidneys. Kidney rejection can be predicted sufficiently (not without error) from the gene expressions with only as few as 8 genes. These genes are 1552807_a_at, 202270_at, 204014_at, 207735_at, 219777_at, 219990_at, 221658_s_at, and 240413_at. From these, **202270_at, 221658_s_at, 240413_at** are also proposed by the exploratory analysis as potentially predictive for kidney rejection status."
 ---
 
 ```{r setup, include=FALSE}
@@ -77,7 +77,7 @@ all.equal(row.names(GeneExpression), as.character(RejectionStatus$Patient_ID))
 ```{r, results = "asis"}
 abbreviation <- c('AUC','IQR', 'LDA', 'LASSO', 'LLE', 'MDS', 'PCA', 'ROC curve', 'sd', 't-SNE')
 meaning <-
-  c('Area under the curve',
+  c('Area under the (ROC) curve',
     'Interquartile range',
     'Linear discriminant analysis',
     'Least absolute shrinkage and \\\\ & selection operator',
@@ -147,7 +147,7 @@ ggplot(basics_long, aes(value, fill = reject)) +
 
 ## Advanced exploratory analyses
 
-Multiple methods for exploration and visualisation of high dimensional data were applied (sparse PCA, MDS, sparse LDA, LLE, ISOMAP, Sammon Mapping, Diffusion maps, and t-SNE), yet without clear results. Because the sparse LDA gave the best results we discuss the results here and refer to the appendices (\@ref(mds) to \@ref(tsneheader)) for the results of the other techniques.
+Multiple methods for exploration and visualisation of high dimensional data were applied (sparse PCA, MDS, sparse LDA, LLE, ISOMAP, Sammon Mapping, Diffusion maps, and t-SNE), yet without clear results. Because the sparse LDA gave the best results we discuss the results here and refer to the appendices (section \@ref(mds) to \@ref(tsneheader)) for the results of the other techniques.
 
 ```{r sparse lda}
 id.all <- numeric()
@@ -173,7 +173,7 @@ for(i in 1:3){
 }
 ```
 
-The sparse LDA was performed to find potential candidate genes for future investigation. Due to computational constraints (our system ran out of memory) we needed to split the data set in 3 parts (each part consisting of 282 observations on `r dim(GeneExpression)[2]/3` genes). We considered this approach to be reasonable since we only used it as an exploratory tool. A small simulation was performed to verify its potential as such a tool (see appendix \@ref(simulation)).
+The sparse LDA was performed to find potential candidate genes for future investigation. Due to computational constraints (our system ran out of memory) we needed to split the data set in 3 parts (each part consisting of 282 observations on `r dim(GeneExpression)[2]/3` genes). We considered this approach to be reasonable since we only used it as an exploratory tool. A small simulation was performed to verify its potential as such a tool (see section \@ref(simulation) in the appendices).
 In total `r length(id.all)` genes (or `r round(length(id.all)/dim(GeneExpression)[2]*100,1)`%) had non-zero loadings. 
 
 Because this is still a substantial amount, only the genes with loadings in absolute value larger than two standard deviations were further considered ($|v_i| > 2sd_v,$ with $i =\{1,...,116 \}$, $sd_v$ the standard deviation of the loadings, and $v_i$ the ith loading). This resulted in a list of `r length(id.all[which(abs(loadings) > 2*sd(loadings))])` genes: `r colnames(GeneExpression)[id.all[which(abs(loadings) > 2*sd(loadings))]]`.
@@ -215,7 +215,7 @@ $$\left.\begin{aligned} H_{0,i}: \mu_{rejected, i} = \mu_{accepted,i} \\ H_{a,i}
 
 In these hypotheses $\mu_{rejected,i}$ and $\mu_{accepted,i}$ are the population means of the gene expression level of the ith gene in the rejected and accepted kidney rejection group respectively. Before testing, a visual inspection of 30 QQ plots, from 15 randomly drawn variables, was done to assess whether the variables follow a normal distribution for both groups separately. These QQ plots showed that some genes were normally distributed, but also that many genes were not. 
 
-Nevertheless, two-sided Welch t-tests were performed on the uncentered data to determine whether the two groups can be differentiated based on the gene expression level for every gene. The choice for the Welch t-test is motivated by the presence of unequal variances between the two groups, even though not all genes were normally distributed. We included a small random subset 6 QQ plots in the appendix so the reader, if she/he wishes, can have a rough idea of the divergence from normality.
+Nevertheless, two-sided Welch t-tests were performed on the uncentered data to determine whether the two groups can be differentiated based on the gene expression level for every gene. The choice for the Welch t-test is motivated by the presence of unequal variances between the two groups, even though not all genes were normally distributed. We included a small random subset 6 QQ plots in the appendix (section \@ref(qq)) so the reader, if she/he wishes, can have a rough idea of the divergence from normality (or the absence thereof).
 
 To address the multiple testing problem at this large scale (54675 simultaneous tests), the FDR is controlled at 0.10 through application of the method of Benjamini and Hochberg (1995).
 
@@ -274,7 +274,7 @@ Fromthe graph in figure \@ref(fig:lfdr) can be concluded that a small lfdr can b
 # Prediction of kidney transplant rejection
 
 The objective of this final part is to construct a classifier for kidney acceptance or rejection based on the measured gene expressions.
-Three approaches are compared: lasso, ridge regression and principle component regression. 
+Three approaches are compared: LASSO, ridge regression and principle component regression. 
 These approaches will be compared based on the AUC.
 The final modelling approach is chosen as the one that shows the largest AUC obtained on the test dataset.
 The cutoff is chosen based on the F1-score.
@@ -319,8 +319,7 @@ pred_mod_lasso <-
 plot(m.cv, xlab = TeX(" $ log(\\gamma ) $ "))
 ```
 
-In figure \@ref(fig:lasso), one can see that for $\gamma$ equal to `r round(m.cv$lambda.min, digits = 2)`, the _AUC_ is maximal (`r round(performance(pred_mod_lasso, "auc")@y.values[[1]], digits = 3)`) for the train dataset based on a 10-fold cross-validation over the train dataset. 
-
+In figure \@ref(fig:lasso), one can see that for $\gamma$ equal to `r round(m.cv$lambda.min, digits = 2)`, the _AUC_ is maximal (`r round(performance(pred_mod_lasso, "auc")@y.values[[1]], digits = 3)`) for the train dataset based on a 10-fold cross-validation over the train dataset.  
 The ROC curve, estimated with the cross-validation dataset, is shown in figure \@ref(fig:performance-lasso).
 
 ```{r performance-lasso, fig.cap="ROC curve LASSO regression model."}
@@ -334,14 +333,16 @@ This model only uses
 of the genes: `r colnames(GeneExpression)[lasso_selection]`.
 This is a considerable dimensional reduction. Table \@ref(tab:lassotab) shows the loadings of the selected values.
 
-```{r lassotab, results="asis"}
+```{r lassotable, results="asis"}
 
 genes_lasso <-   str_replace_all(append("intercept", colnames(GeneExpression)[lasso_selection]), "_", "-")
 loading_lasso <- summary(coef(mod_lasso))[, 3]
 
 table <- tibble(Genes = genes_lasso, "Parameter value" = loading_lasso)
 
-knitr::kable(table, caption = "Coefficients LASSO model", format = "latex")
+print(xtable(table, caption = "\\label{tab:lassotab}Coefficients LASSO model", digits = 3),
+      table.placement = "H", include.rownames=FALSE)
+#knitr::kable(table, caption = "Coefficients LASSO model", format = "latex")
 ```
 
 
@@ -375,7 +376,7 @@ pred_m <-
 plot(m.cv, xlab = TeX(" $ log(\\gamma ) $ "))
 ```
 
-Likewise as for the Lasso regression, for $\gamma$ equal to `r round(m.cv$lambda.min, digits = 2)`, the optimal _AUC_ (`r round(performance(pred_m, "auc")@y.values[[1]], digits = 3)`) is obtained. 
+In the same manner as for the LASSO regression, for the ridge regression a $\gamma$ equal to `r round(m.cv$lambda.min, digits = 2)` and corresponding optimal _AUC_ (`r round(performance(pred_m, "auc")@y.values[[1]], digits = 3)`) was obtained. 
 
 The ROC curve, estimated with the cross-validation dataset, is shown in figure \@ref(fig:performance-ridge).
 
@@ -458,7 +459,7 @@ The AUC for this model is `r round(performance(pred_mod, "auc")@y.values[[1]], d
 
 ## Final model evaluation
 
-```{r final, fig.cap="Cutoff value selection based on F1 score. The red line shows the cutoff value for which the F1 is maximal."}
+```{r final, fig.cap="Cutoff value selection. The red line indicates the maximum F1 score and corresponding cutoff value."}
 perf_f1 <- performance(pred_mod_lasso, "f")
 plot(perf_f1)
 pred <- predict(mod_lasso,newx = X_test,type = 'response')
@@ -469,35 +470,52 @@ abline(v=cutoff, col =2)
 
 The model performance in terms of AUC is similar for the 3 models.
 Since LASSO regression is the simplest model, this is preferred.
-By chosing cutoff c = `r round(cutoff, 2)`, we can achieve a F1-score of `r round(max(perf_f1@y.values[[1]], na.rm = T), 2)`. 
-This is represented on the following graph. 
-Below, the F1 graph, the confusion matrix for the Lasso model with cutoff c = `r round(cutoff, 2)` is shown.
-
-The confusion matrix shows no false negatives at all, but the number of false positives is high.
-
-```{r, results= "asis"}
+By chosing cutoff c = `r round(cutoff, 2)`, we can achieve a F1-score of `r round(max(perf_f1@y.values[[1]], na.rm = T), 2)`. This is represented in figure \@ref(fig:final). The confusion matrix for the LASSO model with cutoff c = `r round(cutoff, 2)` is shown in table \@ref(tab:confusion).
+<!--The confusion matrix shows no false negatives at all, but the number of false positives is high.-->
+```{r confusion, results="asis"}
 
 ypred <- factor(as.numeric(pred > cutoff), levels = c(0, 1))
 tab <- table(Y_test, ypred)
 colnames(tab) <- c('accept pred', 'reject pred')
 rownames(tab) <- c('accept obs', 'reject obs')
 #knitr::kable(tab, digits = 0, align = 'l', format = "latex")
-xtable(tab, caption = "Confusion matrix final model.")
+print(xtable(tab, caption = "\\label{tab:confusion}Confusion matrix final model."), table.placement="H")
 ```
 This confusionmatrix clearly shows a sensitivity of `r round(tab[4] / (tab[2] + tab[4]), digits = 2)`, and a specificity of `r round(tab[1] / (tab[1] + tab[3]), digits = 2)`. 
 In short, this predictor seems to strike a balance between both, but the performance is not perfect.
-If a person tests positive, there is still a considerable chance the kidney will not be rejected.
-
-
-This behaviour could be _explained_ (or at least understood a little better) when looking back at the exploratory analysis. 
-Here it was already clear that the gene expressions of the patients with rejected kidneys overlap with those of the patients with accepted kidneys. 
-Both are not perfectly separable.
+If a person tests positive, there is still a considerable chance the kidney will not be rejected. 
+This result could be _explained_ (or at least understood a little better) by looking back at the exploratory analysis. 
+There it was already clear that the gene expressions of the patients with rejected kidneys overlap with those of the patients with accepted kidneys. Both are not perfectly separable.
  
 
 # Conclusions
 
 In the exploratory analysis we found that the 2 groups are different, but not fully separable. Through applyication of a procedure based on the sparse LDA (adapted for running on our memory-limited hardware) a few genes were flagged as potentially interesting for further research. From the 54675 genes in the dataset, `r rejections` genes are differentially expressed between the two kidney groups, based on multi-scale Welch t-test at an FDR of 10%.  
-The 3 modeling approaches used in this study performed very similar in terms of AUC, the LASSO regression was selected for its spareseness.  Interestingly, from the selected genes by the LASSO model, the genes `r colnames(GeneExpression)[intersect(best_all, lasso_selection)]` were also detected by the sparse LDA procedure.
+The 3 modeling approaches used in this study performed very similar in terms of AUC. The LASSO regression model was selected based on its spareseness. The final model performed well in terms of estimated sensitivity and specificity. Interesting to note is that from the selected genes by the LASSO model, the genes `r colnames(GeneExpression)[intersect(best_all, lasso_selection)]` were also detected by the sparse LDA procedure.
+
+
+# References
+
+Benjamini Y and Hochberg Y, 1995. Controlling The False Discovery Rate - A Practical And Powerful Approach To Multiple Testing. Journal of the Royal Statistical Society. Series B: Methodological 57, 289-300.
+
+Lafon S and Lee AB, 2006. Diffusion maps and coarse-graining: A unified framework for dimensionality
+reduction, graph partitioning, and data set parameterization. IEEE Transactions on Pattern
+Analysis and Machine Intelligence, 28, 1393–1403.
+
+Nadler B, Lafon S, Coifman RR, and Kevrekidis IG, 2006. Diffusion maps, spectral clustering and
+the reaction coordinates of dynamical systems. Applied and Computational Harmonic Analysis:
+Special Issue on Diffusion Maps and Wavelets, 21, 113–127.
+
+Roweis ST and Saul LK, 2000. Nonlinear dimensionality reduction by locally linear embedding. Science, 290, 2323-2326.
+
+Sammon JW, 1969. A nonlinear mapping for data structure analysis. IEEE Transactions on Computers,
+18, 401–409.
+
+Tenenbaum JB, De Silva V and Langford JC, 2000. A global geometric framework for nonlinear dimensionality reduction. Science, 290, 2319-2323.
+
+Van Der Maaten L and Hilton G, 2008. Visualising data using t-SNE. Journal of Machine Learning Research, 9, 2579-2605.
+
+\leavevmode\newpage
 
 # Appendices
 
@@ -505,23 +523,19 @@ The 3 modeling approaches used in this study performed very similar in terms of 
 
 ### Sparse principle components analysis
 
-```{r}
-knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE,
-                      fig.width=6, fig.height=4, cache = TRUE, eval=FALSE)
 
-```
-
-
-```{r sparse pca, eval=FALSE}
+```{r sparse-pca, results="hide", eval=TRUE, echo=FALSE, message=FALSE, warning=FALSE, error=FALSE, fig.cap="sparse PCA"}
 #SPC.cv(GeneExpression_C)
 Gen_spc <- PMA::SPC(GeneExpression_C, K = 2, sumabsv = 5)
 Uk <- Gen_spc$u ; Dk <- diag(Gen_spc$d)
-Zk <- data.frame(X = Uk %*% Dk, Patient_ID = row.names(GeneExpression_C))
-Zk <- merge(Zk, RejectionStatus, by = 'Patient_ID') %>% 
-  mutate(Reject_Status = as.factor(Reject_Status))
-ggplot(data = Zk, aes(x = X.1, y = X.2, col = Reject_Status)) + 
-  geom_point()
-
+# Zk <- data.frame(X = Uk %*% Dk, Patient_ID = row.names(GeneExpression_C))
+# Zk <- merge(Zk, RejectionStatus, by = 'Patient_ID') %>% 
+#   mutate(Reject_Status = as.factor(Reject_Status))
+# ggplot(data = Zk, aes(x = X.1, y = X.2, col = Reject_Status)) + 
+#   geom_point() +
+#   theme_classic
+Zk <- Uk %*% Dk
+plot(Zk, col = RejectionStatus$Reject_Status + 1, pch = 19)
 rm(Zk, Dk, Uk, X_GSE21374, Gen_spc)
 ```
 
@@ -529,7 +543,7 @@ Unfortunately, naive sparce principle component analysis cannot be used to make 
 
 ### Multi-dimensional scaling: {#mds}
 
-```{r mds, eval=FALSE}
+```{r mds, eval=TRUE, fig.cap="Biplot (not showing the vectors) MDS, dimensions 1 and 2."}
 GeneExpression_C.svd <- svd(GeneExpression_C)
 
 k <- 3
@@ -544,17 +558,21 @@ ColnamesNull <- colnames(GeneExpression_C)
 ColnamesNull[]<- "" 
 
 plot(Zk[,1], Zk[,2], col=RejectionStatus$Reject_Status+1,pch=19)
+```
+
+```{r mds2, fig.cap="Biplot (not showing the vectors) MDS, dimensions 2 and 3."}
 plot(Zk[,2], Zk[,3], col=RejectionStatus$Reject_Status+1,pch=19)
 ```
 
+
 In the biplots of the three first dimensions of the svd, no distinction can be made between rejected and accepted kidneys.
 
-```{r plots-mds, fig.cap="Scree plot", eval=FALSE}
+```{r plotsmds, fig.cap="Scree plot MDS.", eval=TRUE}
 totvar <- sum(GeneExpression_C.svd$d^2)/(nrow(GeneExpression_C)-1)
 barplot(cumsum(GeneExpression_C.svd$d^2/(nrow(GeneExpression_C)-1)/totvar), names.arg=1:nrow(GeneExpression_C), ylab='cumulative prop. of total variance')
 ```
 
-In the scree plot \@ref(fig:plots-mds) it can be seen that the two first dimensions account for only 25% of the total variance in the dataset and the first three dimensions for 29%. To account for 80% of the total variance, 120 dimensions are needed.
+In the scree plot \@ref(fig:plotsmds) it can be seen that the two first dimensions account for only 25% of the total variance in the dataset and the first three dimensions for 29%. To account for 80% of the total variance, 120 dimensions are needed.
 
 
 <!-- ### Sparse LDA -->
@@ -615,43 +633,60 @@ In the scree plot \@ref(fig:plots-mds) it can be seen that the two first dimensi
 
 Locally linear embedding described by Roweis and Saul (2000) was performed. From the next figures can be seen that no distinction between the accepted and rejected kidneys can be made.
 
-```{r lle, fig.cap="LLE", fig.pos="hold", out.width="50%", eval=FALSE}
+```{r lle, fig.cap="LLE, dimensions 1 and 2.", eval=TRUE}
 lle <- RDRToolbox::LLE(data=GeneExpression_C, dim=3, k=50)
 labels = c("first component", "second component", 'third component')
 plot(lle[,1],lle[,2],col=RejectionStatus$Reject_Status+1,pch=19)
+#plot(lle[,2],lle[,3],col=RejectionStatus$Reject_Status+1,pch=19)
+```
+
+```{r lle2, fig.cap="LLE, dimensions 2 and 3.", eval=TRUE}
+
 plot(lle[,2],lle[,3],col=RejectionStatus$Reject_Status+1,pch=19)
 ```
+
+
 
 ### ISOMAP
 
 ISOMAP presented by Tenenbaum, Silva and Langford in 2000 is performed. The parameter k is varied manually so that the maps are optimal. From figure \@ref(fig:ISOMAP) can be seen that with ISOMAP, it is also not possible to make a distinction between the group of accepted and rejected kidneys.
 
-```{r ISOMAP, fig.cap="ISOMAP", fig.pos="hold", out.width="50%", eval=FALSE}
+```{r ISOMAP, fig.cap="ISOMAP, dimensions 1 and 2.", eval=TRUE, echo=FALSE}
 IM <- RDRToolbox::Isomap(data=GeneExpression_C, dims=3, k=30)
 labelsIM <- c("first component", "second component", "third component")
 plot(IM$dim3[,1],IM$dim3[,2],col=RejectionStatus$Reject_Status+1,pch=19)
-plot(IM$dim3[,2],IM$dim3[,3],col=RejectionStatus$Reject_Status+1,pch=19)
+#plot(IM$dim3[,2],IM$dim3[,3],col=RejectionStatus$Reject_Status+1,pch=19)
 # 3d plot (remove in final version)
 # RDRToolbox::plotDR(data=IM$dim3, labels=RejectionStatus[,2], axesLabels=labelsIM)
 
-RDRToolbox::Isomap(data=GeneExpression_C, dims=1:10, k=30, plotResiduals=TRUE)
+#RDRToolbox::Isomap(data=GeneExpression_C, dims=1:10, k=30, plotResiduals=TRUE)
+```
+
+```{r ISOMAP2, fig.cap="ISOMAP, dimensions 2 and 3.", eval=TRUE, echo=FALSE}
+
+plot(IM$dim3[,2],IM$dim3[,3],col=RejectionStatus$Reject_Status+1,pch=19)
+
 ```
 
 ### Sammon mapping
 
 Sammon mapping presented by Sammon (1969). The result is in figures \@ref(fig:sammon): no distinction can be made between the two groups.
 
-```{r sammon, fig.cap="Sammon mapping", fig.pos="hold", out.width="50%", eval=FALSE}
+```{r sammon, results="hide", fig.cap="Sammon mapping dimensions 1 and 2.", eval=TRUE, echo=FALSE, message=FALSE, warning=FALSE, error=FALSE}
 sammon <- MASS::sammon(dist(GeneExpression_C), k=3, niter=100)
 plot(sammon$points[,1], sammon$points[,2], type = "p", col=RejectionStatus$Reject_Status+1, pch=19)
+```
+
+```{r sammon2, results="hide", fig.cap="Sammon mapping dimensions 2 and 3."}
 plot(sammon$points[,2], sammon$points[,3], type = "p", col=RejectionStatus$Reject_Status+1, pch=19)
 ```
+
 
 ### Diffusion maps
 
 Diffusion mapping was presented by Nadler et al. (2006) and LAfon and Lee (2006). From figure \@ref(fig:diffusion), no distinction between the two groups can be made with diffusion maps.
 
-```{r diffusion, fig.cap="Diffusion map", eval=FALSE}
+```{r diffusion, results="hide", fig.cap="Diffusion map", eval=TRUE}
 DiffusionMap <- diffusionMap::diffuse(dist(GeneExpression_C), maxdim=3)
 plot(DiffusionMap$X, type='p', col=RejectionStatus$Reject_Status+1, pch=19)
 ```
@@ -660,24 +695,22 @@ plot(DiffusionMap$X, type='p', col=RejectionStatus$Reject_Status+1, pch=19)
 
 t-stochastic neighbor embedding is presented by Van Den Maaten and Hilton (2008). The resulting plot can be seen in figure \@ref(fig:tsne) and indicates again that a simple distinction between the two groups cannot be made. Yet, there seems to be roughly two groups that differ in heterogeneity: one largely heterogeneous group and one group that is less heterogeneous, though far from homogeneous.
 
-```{r tsne, fig.cap="Two dimensional representation of the data through application of t-SNE", eval=FALSE}
+```{r tsne, fig.cap="Two dimensional representation of the data through application of t-SNE", eval=TRUE}
 gene_dist <- dist(GeneExpression_C)
 tsne_Z <- tsne(gene_dist, k = 2, perplexity = 45)
-tibble(as.data.frame(tsne_Z), reject = factor(RejectionStatus$Reject_Status, labels = c("Accepted", "Rejected"))) %>%
-  ggplot(aes(V1, V2, color = reject)) +
-  geom_point() +
-  theme_classic() +
-  labs(color = "Status",
-       x="",
-       y="")
+# tibble(as.data.frame(tsne_Z), reject = factor(RejectionStatus$Reject_Status, labels = c("Accepted", "Rejected"))) %>%
+#   ggplot(aes(V1, V2, color = reject)) +
+#   geom_point() +
+#   theme_classic() +
+#   labs(color = "Status",
+#        x="",
+#        y="")
+plot(tsne_Z, col = 1 + RejectionStatus$Reject_Status, pch = 19)
 ```
 
-### Simulation sparse LDA {#simulation}
-
-In order to have an idea whether sparse LDA split in 3 parts can be used as an exploratory tool we ran a small simulation. We simulated high dimensional data in such a way that also the split parts were high dimensional (n = 33, p = 102). We kept the number of observations and variables as low as possible to make it computationally feasible and still high enough to be able to get some insights from the results. We constructed the data in such a manner that only 2 variables were predictive of the response (note this is `r round(2/102*100,1)`%, which is different from the real data: `r round(length(id.all)/dim(GeneExpression)[2]*100,1)`%). The response was constructed in such a way that approximately 27% were successes (allowing for variation over simulation repetitions).
 
 
-```{r}
+```{r, rsults="hide"}
 
 # helper function
 slda <-  function (x,y){
@@ -738,61 +771,43 @@ for(i in 1:nsims){
   }
 
 ```
-
-The simulation was repeated 50 times and we looked at following measures: correlation between coefficients (mean correlation =`r round(mean(cors, na.rm=T),2)`, .25^th^ and .75^th^ quantiles (`r round(quantile(cors, c(.25,.75), na.rm = T),2)`), `r sum(is.na(cors))` correlations were not computable because one or both of the methods gave only 1 or no coefficients), proportion of simulations in which at least 1 variable was detected by both methods (`r round(mean(hit),2)`), proportion of variables detected by the full method that also were detected by the split method (mean proportion = `r round(mean(sim_sens, na.rm=T),2)`, .25^th^ and .75^th^ quantiles =(`r round(quantile(sim_sens, c(.25,.75), na.rm = T),2)`, higher is better), and proportion of variables detected by the split method that weren't detected by the full method (mean proportion =`r round(mean(prop_notinfull, na.rm=T),2)`, .25^th^ and .75^th^ quantiles (`r round(quantile(prop_notinfull, c(.25,.75), na.rm = T),2)`, lower is better).
-
-Although this not a formal way of making a comparison, we feel confident in using this approach, albeit only as an exploratory tool. Please note that we don't claim that the method is valid.
-
-
-## QQ-plots
+### Simulation sparse LDA {#simulation}
+In order to have an idea whether sparse LDA split in 3 parts can be used as an exploratory tool we ran a small simulation. We simulated high dimensional data in such a way that also the split parts were high dimensional (n = 33, p = 102). We kept the number of observations and variables as low as possible to make it computationally feasible and still high enough to be able to get some insights from the results. We constructed the data in such a manner that only 2 variables were predictive of the response (note this is `r round(2/102*100,1)`%, which is different from the real data: `r round(length(id.all)/dim(GeneExpression)[2]*100,1)`%). The response was constructed in such a way that approximately 27% were successes (allowing for variation over simulation repetitions).  
+The simulation was repeated 50 times and we looked at following measures: correlation between coefficients (mean correlation `r round(mean(cors, na.rm=T),2)`, .25^th^ and .75^th^ quantiles (`r round(quantile(cors, c(.25,.75), na.rm = T),2)`, higher is better), `r sum(is.na(cors))` correlations were not computable because one or both method(s) gave no coefficients), proportion of simulations in which at least 1 variable detected by the full method was also detected by the split method (`r round(mean(hit),2)`, higher is better), proportion of variables detected by the full method that also were detected by the split method (mean proportion `r round(mean(sim_sens, na.rm=T),2)`, .25^th^ and .75^th^ quantiles (`r round(quantile(sim_sens, c(.25,.75), na.rm = T),2)`, higher is better), and proportion of variables detected by the split method that weren't detected by the full method (mean proportion =`r round(mean(prop_notinfull, na.rm=T),2)`, .25^th^ and .75^th^ quantiles (`r round(quantile(prop_notinfull, c(.25,.75), na.rm = T),2)`, lower is better).  
+Although this not a formal way of making a comparison, with these results we feel confident enough to use this adapted approach, albeit only as an exploratory tool. Please note that we don't claim that the adapted method *is* valid.
 
 
-```{r QQ plots for normality check, eval=FALSE}
+## QQ plots {#qq}
 
-Rejected <- matrix(ncol=ncol(GeneExpression_C))
-for (i in seq(1,nrow(RejectionStatus), 1)){
-  if (RejectionStatus[[i,2]]==0){
-    Rejected <- rbind(Rejected, GeneExpression_C[i,])
-  }
-}
+```{r QQ plots for normality check, eval=TRUE}
 
-Accepted <- matrix(ncol=ncol(GeneExpression_C))
-for (i in seq(1,nrow(RejectionStatus),1)){
-  if (RejectionStatus[[i,2]]==1){
-    Accepted <- rbind(Accepted, GeneExpression_C[i,])
-  }
-}
-
-Selection <- sample(seq(1, ncol(GeneExpression_C)), 3)
-
-for (j in Selection) {
-    qqPlot(Rejected[,j], pch = 16, 
+# Rejected <- matrix(ncol=ncol(GeneExpression_C))
+# for (i in seq(1,nrow(RejectionStatus), 1)){
+#   if (RejectionStatus[[i,2]]==0){
+#     Rejected <- rbind(Rejected, GeneExpression_C[i,])
+#   }
+# }
+# 
+# Accepted <- matrix(ncol=ncol(GeneExpression_C))
+# for (i in seq(1,nrow(RejectionStatus),1)){
+#   if (RejectionStatus[[i,2]]==1){
+#     Accepted <- rbind(Accepted, GeneExpression_C[i,])
+#   }
+# }
+# 
+# Selection <- sample(seq(1, ncol(GeneExpression_C)), 3)
+nvars <- 3
+id <- sample(ncol(GeneExpression), nvars)
+for (j in 1:nvars) {
+  
+    qqPlot(GeneExpression[RejectionStatus$Reject_Status == 1,id[j]], pch = 16, 
            main=paste('QQ plot for expression of ', colnames(GeneExpression_C)[j] , 
-                      'in rejected kidneys'))
-    qqPlot(Accepted[,j], pch = 16, 
+                      'in rejected kidneys'), ylab = "empirical quantiles")
+    qqPlot(GeneExpression[RejectionStatus$Reject_Status == 0,id[j]], pch = 16, 
            main=paste('QQ plot for expression of ', colnames(GeneExpression_C)[j] , 
-                      'in accepted kidneys'))
+                      'in accepted kidneys'), ylab = "empirical quantiles")
 }
+
+
 ```
-
-# References
-
-Benjamini Y and Hochberg Y, 1995. Controlling The False Discovery Rate - A Practical And Powerful Approach To Multiple Testing. Journal of the Royal Statistical Society. Series B: Methodological 57, 289-300.
-
-Lafon S and Lee AB, 2006. Diffusion maps and coarse-graining: A unified framework for dimensionality
-reduction, graph partitioning, and data set parameterization. IEEE Transactions on Pattern
-Analysis and Machine Intelligence, 28, 1393–1403.
-
-Nadler B, Lafon S, Coifman RR, and Kevrekidis IG, 2006. Diffusion maps, spectral clustering and
-the reaction coordinates of dynamical systems. Applied and Computational Harmonic Analysis:
-Special Issue on Diffusion Maps and Wavelets, 21, 113–127.
-
-Roweis ST and Saul LK, 2000. Nonlinear dimensionality reduction by locally linear embedding. Science, 290, 2323-2326.
-
-Sammon JW, 1969. A nonlinear mapping for data structure analysis. IEEE Transactions on Computers,
-18, 401–409.
-
-Tenenbaum JB, De Silva V and Langford JC, 2000. A global geometric framework for nonlinear dimensionality reduction. Science, 290, 2319-2323.
-
-Van Der Maaten L and Hilton G, 2008. Visualising data using t-SNE. Journal of Machine Learning Research, 9, 2579-2605.
 
