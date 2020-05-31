@@ -2,7 +2,7 @@
 title: | 
         | Project
         | Transplant kidney rejection
-        | High Dimensional Data Analysis
+        | Analysis of High Dimensional Data
 author:
   - Jan Alexander^[jan.alexander@ugent.be]
   - Annabel Vaessens^[annabel.vaessens@vub.be]
@@ -72,7 +72,7 @@ RejectionStatus <-
 all.equal(row.names(GeneExpression), as.character(RejectionStatus$Patient_ID))
 ```
 
-# Abbreviations
+# Abbreviations {-}
 
 ```{r, results = "asis"}
 abbreviation <- c('AUC', 'CV', 'IQR', 'LDA', 'LASSO', 'LLE', 'MDS', 'PCA', 'ROC curve', 'sd', 't-SNE')
@@ -90,10 +90,6 @@ meaning <-
     't-distributed stochastic neighbor \\\\ & embedding')
 
 abb_table <- data.frame(Abbreviation = abbreviation, Meaning = meaning)
-
-# knitr::kable(abb_table,
-#              align = 'l',
-#              col.names = c('Abbreviation', 'Meaning'),format="latex")
 print(xtable(abb_table), include.rownames=FALSE)
 ```
 
@@ -239,11 +235,6 @@ To summarise the results we constructed a histogram of the adjusted p-values or 
 adjusted <- p.adjust(AllTestResults[,"p-value"], method = "BH")
 rejections <- sum(adjusted < 0.1)
 
-# tibble(gene_index = 1:length(AllTestResults[,1]), pval = AllTestResults[,1],
-#        adjusted = adjusted) %>%
-#   pivot_longer(-gene_index, names_to = "type", values_to = "p.value") %>%
-#   mutate(type = factor(type, levels = c("pval", "adjusted"), 
-#                        labels = c("p-value", "q-value"))) -> df.p
 
 df.p <- tibble(adjusted)
 
@@ -269,6 +260,8 @@ z.locfdr <- locfdr(z_scores, nulltype = 0, plot = 1)
 ```
 
 Fromthe graph in figure \@ref(fig:lfdr) can be concluded that a small lfdr can be obtained for small and large z-scores (a lfdr smaller than 0.2 for z-scores smaller than `r round(z.locfdr$z.2[1] , digits = 2)` and larger than `r round(z.locfdr$z.2[2] , digits = 2)`). For these z-scores, it is more likely that when rejecting the null hypothesis, a true discovery is made.
+
+An online lookup table of all differentially expressed genes, together with their q-values and local false discovery rate can be consulted at https://users.ugent.be/~swallaer/aohd/.
 
 # Prediction of kidney transplant rejection
 
@@ -338,7 +331,6 @@ table <- tibble(Genes = genes_lasso, "Parameter value" = loading_lasso)
 
 print(xtable(table, caption = "\\label{tab:lassotab}Coefficients LASSO model", digits = 3),
       table.placement = "H", include.rownames=FALSE)
-#knitr::kable(table, caption = "Coefficients LASSO model", format = "latex")
 ```
 
 
@@ -484,14 +476,13 @@ abline(v=cutoff, col =2)
 The model performance in terms of AUC is similar for the 3 models.
 Since LASSO regression is the simplest model, this model is preferred.
 By choosing cutoff c = `r round(cutoff, 2)`, we can achieve a maximal F1-score of `r round(max(perf_f1@y.values[[1]], na.rm = T), 2)`. This is represented in figure \@ref(fig:final). The confusion matrix for the LASSO model, based on the test dataset, with cutoff c = `r round(cutoff, 2)` is shown in table \@ref(tab:confusion).
-<!--The confusion matrix shows no false negatives at all, but the number of false positives is high.-->
+
 ```{r confusion, results="asis"}
 
 ypred <- factor(as.numeric(pred > cutoff), levels = c(0, 1))
 tab <- table(Y_test, ypred)
 colnames(tab) <- c('accept pred', 'reject pred')
 rownames(tab) <- c('accept obs', 'reject obs')
-#knitr::kable(tab, digits = 0, align = 'l', format = "latex")
 print(xtable(tab, caption = "\\label{tab:confusion}Confusion matrix final model."), table.placement="H")
 ```
 This confusionmatrix clearly shows a sensitivity of `r round(tab[4] / (tab[2] + tab[4]), digits = 2)`, and a specificity of `r round(tab[1] / (tab[1] + tab[3]), digits = 2)`. 
@@ -506,6 +497,7 @@ There it was already clear that the gene expressions of the patients with reject
 In the exploratory analysis we found that the 2 groups are different, but not fully separable. Through application of a procedure based on the sparse LDA (adapted for running on our memory-limited hardware) a few genes were flagged as potentially interesting for further research. From the 54675 genes in the dataset, `r rejections` genes are differentially expressed between the two kidney groups, based on multi-scale Welch t-test at an FDR of 10%.  
 The 3 modeling approaches used in this study resulted in models that performed very similar in terms of AUC. The LASSO regression model was selected based on its spareseness. The final model performed well in terms of estimated sensitivity (`r round(tab[4] / (tab[2] + tab[4]), digits = 2)`) and specificity (`r round(tab[1] / (tab[1] + tab[3]), digits = 2)`). Interesting to note is that, from the selected genes by the LASSO model, the genes `r colnames(GeneExpression)[intersect(best_all, lasso_selection)]` were also detected by the sparse LDA procedure.
 
+\newpage
 
 # References
 
@@ -530,7 +522,7 @@ Van Der Maaten L and Hilton G, 2008. Visualising data using t-SNE. Journal of Ma
 
 \leavevmode\newpage
 
-# Appendices
+# Appendix
 
 ## Exploration methods for high dimensional data
 
@@ -541,12 +533,7 @@ Van Der Maaten L and Hilton G, 2008. Visualising data using t-SNE. Journal of Ma
 #SPC.cv(GeneExpression_C)
 Gen_spc <- PMA::SPC(GeneExpression_C, K = 2, sumabsv = 5)
 Uk <- Gen_spc$u ; Dk <- diag(Gen_spc$d)
-# Zk <- data.frame(X = Uk %*% Dk, Patient_ID = row.names(GeneExpression_C))
-# Zk <- merge(Zk, RejectionStatus, by = 'Patient_ID') %>% 
-#   mutate(Reject_Status = as.factor(Reject_Status))
-# ggplot(data = Zk, aes(x = X.1, y = X.2, col = Reject_Status)) + 
-#   geom_point() +
-#   theme_classic
+
 Zk <- Uk %*% Dk
 plot(Zk, col = RejectionStatus$Reject_Status + 1, pch = 19)
 rm(Zk, Dk, Uk, X_GSE21374, Gen_spc)
@@ -588,60 +575,6 @@ barplot(cumsum(GeneExpression_C.svd$d^2/(nrow(GeneExpression_C)-1)/totvar), name
 From the scree plot in figure \@ref(fig:plotsmds) it can be seen that the two first dimensions account for only 25% of the total variance in the dataset and the first three dimensions for 29%. To account for 80% of the total variance, 120 dimensions are needed.
 
 
-<!-- ### Sparse LDA -->
-
-<!-- ```{r sparse lda} -->
-<!-- id.all <- numeric() -->
-<!-- loadings <- numeric() -->
-<!-- for(i in 1:3){ -->
-
-<!--   start <- 1 + (i-1)*18225 -->
-<!--   stop <- start + 18224 -->
-
-<!--   gene_lda <- lda(GeneExpression_S[,start:stop], grouping = RejectionStatus$Reject_Status) -->
-
-<!--   V <- gene_lda$scaling -->
-
-<!--   Z <- GeneExpression_S[,start:stop] %*% V -->
-
-<!--   #plot(Z,col = 1+RejectionStatus$Reject_Status, pch=16, cex=1) -->
-
-<!--   #boxplot(Z~RejectionStatus$Reject_Status) -->
-
-<!--   lda_loadings <- cv.glmnet(GeneExpression_S[,start:stop], Z, alpha = 0.5, nfolds = 5) -->
-
-<!--   sparse_lda_loadings <- as.vector(coef(lda_loadings)) -->
-
-<!--   #SLDA <- GeneExpression_S[,start:stop] %*% sparse_lda_loadings[-1] -->
-
-<!--   #boxplot(SLDA ~ RejectionStatus$Reject_Status) -->
-
-<!--   id.all <- append(id.all, which(sparse_lda_loadings[-1]!=0) + (i-1)*18225) -->
-<!--   loadings <- append(loadings, sparse_lda_loadings[-1][sparse_lda_loadings[-1]!=0]) -->
-<!-- } -->
-<!-- ``` -->
-
-<!-- A sparse LDA was performed to find out which genes contribute the most in discriminating between the two rejection status groups.  -->
-<!-- These genes could then be possible targets for further investigation.  -->
-<!-- Due to computational constraints (our system ran out of memory) we needed to split the data set in 3 parts (each part consisting of 282 observations on `r dim(GeneExpression)[2]/3` variables).   -->
-<!-- In total `r length(id.all)` genes (or `r length(id.all)/dim(GeneExpression)[2]*100` %) had non-zero loadings.  -->
-<!-- Figure \ref{slda-loadings} shows a plot of the loadings vs. gene index number.  -->
-<!-- We could decide to only look at the genes with the largest (in absolute value) loadings and only consider those genes whose loadings are more than 2 standard deviations away from 0 (above the red line in figure \ref{slda-loadings}).  -->
-<!-- These are the following `r length(id.all[which(abs(loadings) > 2*sd(loadings))])` genes: `r id.all[which(abs(loadings) > 2*sd(loadings))] %>% colnames(GeneExpression) %>% cat()`.  -->
-<!-- Figure \ref{slda-scores} shows the discriminant scores from which we can see there is a substantial overlap between the 2 groups, suggesting that (sparse) LDA is not the best approach. -->
-
-<!-- ```{r slda-loadings} -->
-<!-- plot(id.all, loadings) -->
-<!-- abline(h=0) -->
-<!-- abline(h=c(-2,2)*sd(loadings), col =2) -->
-<!-- ``` -->
-
-<!-- ```{r slda-scores} -->
-<!-- Z <- GeneExpression_S[,id.all] %*% loadings -->
-
-<!-- plot(Z, col=RejectionStatus$Reject_Status+1, pch=16) -->
-<!-- ``` -->
-
 ### LLE
 
 Locally linear embedding described by Roweis and Saul (2000) was performed. From the next figures can be seen that no distinction between the accepted and rejected kidneys can be made.
@@ -650,7 +583,6 @@ Locally linear embedding described by Roweis and Saul (2000) was performed. From
 lle <- RDRToolbox::LLE(data=GeneExpression_C, dim=3, k=50)
 labels = c("first component", "second component", 'third component')
 plot(lle[,1],lle[,2],col=RejectionStatus$Reject_Status+1,pch=19)
-#plot(lle[,2],lle[,3],col=RejectionStatus$Reject_Status+1,pch=19)
 ```
 
 ```{r lle2, fig.cap="LLE, dimensions 2 and 3.", eval=TRUE}
@@ -668,11 +600,7 @@ ISOMAP presented by Tenenbaum, Silva and Langford in 2000 is performed. The para
 IM <- RDRToolbox::Isomap(data=GeneExpression_C, dims=3, k=30)
 labelsIM <- c("first component", "second component", "third component")
 plot(IM$dim3[,1],IM$dim3[,2],col=RejectionStatus$Reject_Status+1,pch=19)
-#plot(IM$dim3[,2],IM$dim3[,3],col=RejectionStatus$Reject_Status+1,pch=19)
-# 3d plot (remove in final version)
-# RDRToolbox::plotDR(data=IM$dim3, labels=RejectionStatus[,2], axesLabels=labelsIM)
 
-#RDRToolbox::Isomap(data=GeneExpression_C, dims=1:10, k=30, plotResiduals=TRUE)
 ```
 
 ```{r ISOMAP2, fig.cap="ISOMAP, dimensions 2 and 3.", eval=TRUE, echo=FALSE}
@@ -711,13 +639,7 @@ t-stochastic neighbor embedding is presented by Van Den Maaten and Hilton (2008)
 ```{r tsne, fig.cap="Two dimensional representation of the data through application of t-SNE", eval=TRUE}
 gene_dist <- dist(GeneExpression_C)
 tsne_Z <- tsne(gene_dist, k = 2, perplexity = 45)
-# tibble(as.data.frame(tsne_Z), reject = factor(RejectionStatus$Reject_Status, labels = c("Accepted", "Rejected"))) %>%
-#   ggplot(aes(V1, V2, color = reject)) +
-#   geom_point() +
-#   theme_classic() +
-#   labs(color = "Status",
-#        x="",
-#        y="")
+
 plot(tsne_Z, col = 1 + RejectionStatus$Reject_Status, pch = 19)
 ```
 
@@ -794,21 +716,7 @@ Although this not a formal way of making a comparison, with these results we fee
 
 ```{r QQ plots for normality check, eval=TRUE}
 
-# Rejected <- matrix(ncol=ncol(GeneExpression_C))
-# for (i in seq(1,nrow(RejectionStatus), 1)){
-#   if (RejectionStatus[[i,2]]==0){
-#     Rejected <- rbind(Rejected, GeneExpression_C[i,])
-#   }
-# }
-# 
-# Accepted <- matrix(ncol=ncol(GeneExpression_C))
-# for (i in seq(1,nrow(RejectionStatus),1)){
-#   if (RejectionStatus[[i,2]]==1){
-#     Accepted <- rbind(Accepted, GeneExpression_C[i,])
-#   }
-# }
-# 
-# Selection <- sample(seq(1, ncol(GeneExpression_C)), 3)
+
 nvars <- 3
 id <- sample(ncol(GeneExpression), nvars)
 for (j in 1:nvars) {
