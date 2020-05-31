@@ -22,7 +22,7 @@ output:
     toc_depth: '3'
 header-includes: \usepackage{amsmath} \usepackage{float} \renewcommand{\abstractname}{Executive summary}
 classoption: twocolumn
-abstract: "This research examines whether some genes are responsible for a patient's likelihood of rejecting a kidney after transplantation, for the  Gene Expression Omninibus (GEO) dataset. This dataset consists of gene expression levels of 54675 genes from 282 patients. Data exploration methods show that there is no clear way to map the gene expression levels onto the kidney rejection statuses. In other words, only probabilistic claims can be made. From the 54675 genes, 18081 genes are identified as having a differential expression between the group of rejected and the group of accepted kidneys. Kidney rejection can be predicted sufficiently (not without error) from the gene expressions with only as few as 8 genes. These genes are 1552807_a_at, 202270_at, 204014_at, 207735_at, 219777_at, 219990_at, 221658_s_at, and 240413_at. From these, **202270_at, 221658_s_at, 240413_at** are also proposed by the exploratory analysis as potentially predictive for kidney rejection status."
+abstract: "This research examines whether some genes are responsible for a patient's likelihood of rejecting a kidney after transplantation, for the  Gene Expression Omninibus (GEO) dataset. This dataset consists of gene expression levels of 54675 genes from 282 patients. Data exploration methods show that there is no clear way to map the gene expression levels onto the kidney rejection statuses. In other words, only probabilistic claims can be made. From the 54675 genes, 18081 genes are identified as having a differential expression between the group of rejected and the group of accepted kidneys. Kidney rejection status can be predicted within reasonable error bounds from the expression levels of only as few as 8 genes. These genes are 1552807_a_at, 202270_at, 204014_at, 207735_at, 219777_at, 219990_at, 221658_s_at, and 240413_at. From these, **202270_at, 221658_s_at, 240413_at** are also proposed by the exploratory analysis as potentially predictive for kidney rejection status."
 ---
 
 ```{r setup, include=FALSE}
@@ -267,7 +267,7 @@ An online lookup table of all differentially expressed genes, together with thei
 
 The objective of this final part is to construct a classifier for kidney acceptance or rejection based on the measured gene expressions.
 Three approaches are compared: LASSO regression, ridge regression and principle component regression. 
-Each of these approaches will yield a 'best' model, based on the cross validate AUC, using a dedicated training part of the data set (random subset of 70% of the data). Of these 3 'best' models, the model with the largest AUC, calculated using an independent test part of the data (random subset of 30% of the data)---that is, data the models haven't seen yet---, will then be selected as the final model. 
+Each of these approaches will yield a 'best' model, based on the cross validated AUC, using a dedicated training part of the data set (random subset of 70% of the data). Of these 3 'best' models, the model with the largest AUC, calculated using an independent test part of the data (random subset of 30% of the data)---that is, data the models haven't seen yet---, will then be selected as the final model. 
 
 ```{r train test split}
 ind_train <-
@@ -308,7 +308,7 @@ pred_mod_lasso <-
 plot(m.cv, xlab = TeX(" $ log(\\gamma ) $ "))
 ```
 
-In figure \@ref(fig:lasso), one can see that for $\gamma$ equal to `r round(m.cv$lambda.min, digits = 2)`, the cross validated _AUC_ is maximal for the train dataset based on a 10-fold cross-validation over the train dataset.  
+In figure \@ref(fig:lasso), one can see that for $\gamma$ equal to `r round(m.cv$lambda.min, digits = 2)`, the cross validated _AUC_ is maximal for the train dataset based on a 10-fold cross-validation.  
 The ROC curve, estimated with the test dataset, is shown in figure \@ref(fig:performance-lasso). The corresponding AUC equals `r round(performance(pred_mod_lasso, "auc")@y.values[[1]], digits = 3)`.
 
 ```{r performance-lasso, fig.cap="ROC curve LASSO regression model."}
@@ -495,7 +495,7 @@ There it was already clear that the gene expressions of the patients with reject
 # Conclusions
 
 In the exploratory analysis we found that the 2 groups are different, but not fully separable. Through application of a procedure based on the sparse LDA (adapted for running on our memory-limited hardware) a few genes were flagged as potentially interesting for further research. From the 54675 genes in the dataset, `r rejections` genes are differentially expressed between the two kidney groups, based on multi-scale Welch t-test at an FDR of 10%.  
-The 3 modeling approaches used in this study resulted in models that performed very similar in terms of AUC. The LASSO regression model was selected based on its spareseness. The final model performed well in terms of estimated sensitivity (`r round(tab[4] / (tab[2] + tab[4]), digits = 2)`) and specificity (`r round(tab[1] / (tab[1] + tab[3]), digits = 2)`). Interesting to note is that, from the selected genes by the LASSO model, the genes `r colnames(GeneExpression)[intersect(best_all, lasso_selection)]` were also detected by the sparse LDA procedure.
+The 3 modeling approaches used in this study resulted in models that performed very similar in terms of AUC. The LASSO regression model was selected based on its spareseness. The final model performed well in terms of estimated sensitivity (`r round(tab[4] / (tab[2] + tab[4]), digits = 2)`) and specificity (`r round(tab[1] / (tab[1] + tab[3]), digits = 2)`). Interesting to note is that, from the selected genes by the LASSO model, the genes `r colnames(GeneExpression)[intersect(best_all, lasso_selection)]` were also detected by the exploratory sparse LDA procedure.
 
 \newpage
 
